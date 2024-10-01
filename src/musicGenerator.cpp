@@ -1,4 +1,4 @@
-#include "musicGenerator.h"
+#include "musicGenerator.hpp"
 
 #include <sstream>
 std::wstring widen( const std::string& str )

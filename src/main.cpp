@@ -6,54 +6,9 @@
 #include <stdlib.h>
 #include <onnxruntime_cxx_api.h>
 
-#include "musicGenerator.h"
-
-class Redirector
-{
-    struct Callback
-    {
-        void* data;
-        std::function<void(void*)> callback;
-
-        void call()
-        {
-            callback(data);
-        }
-    };
-
-    std::map<int32_t, Callback> tokenToCallback;
-
-public:
-    void call(int32_t token)
-    {
-        tokenToCallback.at(token).call();
-    }
-
-    void bindPitch(const MidiTokenizer& tokenizer, const std::string& newKey, void (*newCallback)(void*, std::uint8_t pitch), void* data = nullptr)
-    {
-        const std::map<std::string, int32_t>& vocab = tokenizer.GetVocabBase();
-
-        for (auto& [key, value] : vocab)
-        {
-            if (key.size() >= newKey.size() && key.compare(0, newKey.size(), newKey) == 0)
-            {
-                std::string args = key.substr(newKey.size());
-
-                // Since it's bindPitch, we know args is just a single int
-                std::uint8_t arg = std::uint8_t(std::stoi(args));
-
-                Callback callback;
-                callback.data = data;
-                callback.callback = [newCallback, arg](void* data)
-                {
-                    newCallback(data, arg);
-                };
-
-                tokenToCallback[value] = callback;
-            }
-        }
-    }
-};
+#include "gen.h"
+#include "musicGenerator.hpp"
+#include "redirector.hpp"
 
 int main()
 {
@@ -62,10 +17,11 @@ int main()
 
     std::unique_ptr<MidiTokenizer> tokenizer = std::make_unique<MidiTokenizer>(WORKSPACE_PATH "/tokenizer.json");
 
-    std::unique_ptr<Ort::Env> env = MusicGenerator::createOnnxEnv();
+    // std::unique_ptr<Ort::Env> env = MusicGenerator::createOnnxEnv();
+    EnvHandle env = createEnv(false);
 
     MusicGenerator generator;
-    generator.loadOnnxModel(*env.get(), WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model3_past.onnx");
+    generator.loadOnnxModel(*env, WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model3_past.onnx");
 
 
     Input::DataType input_ids[] = {
@@ -89,7 +45,7 @@ int main()
 
     Redirector redirector;
 
-    redirector.bindPitch(*tokenizer.get(), "Pitch_", [](void*, std::uint8_t pitch)
+    redirector.bindPitch(*tokenizer.get(), "Pitch_", [](void*, unsigned char/*uint8*/ pitch)
     {
         std::cout << "Pitch : " << int(pitch) << std::endl;
     });
@@ -114,4 +70,6 @@ int main()
     }
 
     // tokenizer->decode(input.inputData[0]);
+
+    destroyEnv(env);
 }

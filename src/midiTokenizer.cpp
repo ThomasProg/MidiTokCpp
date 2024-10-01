@@ -60,13 +60,13 @@ void MidiTokenizer::__create_vocab_learned_bytes_to_tokens()
     //     std::cout << '\n';
     // }
 
-    for (auto& [key, value] : _vocab_base_byte_to_token)
-    {
-        printAsAscii(key);
-        std::cout << ": ";
-        printAsAscii(value);
-        std::cout << '\n';
-    }
+    // for (auto& [key, value] : _vocab_base_byte_to_token)
+    // {
+    //     printAsAscii(key);
+    //     std::cout << ": ";
+    //     printAsAscii(value);
+    //     std::cout << '\n';
+    // }
 
     for (auto& [k, value] : vocab)
     {
@@ -276,9 +276,9 @@ void MidiTokenizer::loadFromJson(const std::string& filename)
 
 }
 
-TokSequenceInt MidiTokenizer::encode(const Score& score)
+std::vector<int32_t> MidiTokenizer::encode(const Score& score)
 {
-    return TokSequenceInt();
+    return std::vector<int32_t>();
 }
 
 TokSequence MidiTokenizer::_convert_sequence_to_tokseq(const std::vector<int32_t>& tokens)
@@ -401,7 +401,7 @@ Score MidiTokenizer::_tokens_to_score(const TokSequence& seq)
     return score;
 }
 
-Score MidiTokenizer::decode(const TokSequenceInt& tokens)
+Score MidiTokenizer::decode(const std::vector<int32_t>& tokens)
 {
     TokSequence tokSequence = _convert_sequence_to_tokseq(tokens);
 
@@ -411,6 +411,15 @@ Score MidiTokenizer::decode(const TokSequenceInt& tokens)
 
 
     return score;
+}
+
+void MidiTokenizer::decodeIDs(const std::vector<int32_t>& tokens, std::vector<int32_t>& outTokens)
+{
+    TokSequence tokSequence = _convert_sequence_to_tokseq(tokens);
+
+    _preprocess_tokseq_before_decoding(tokSequence);
+
+    outTokens = std::move(tokSequence.ids);
 }
 
 bool MidiTokenizer::is_trained() const

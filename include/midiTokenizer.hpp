@@ -13,7 +13,6 @@
 
 using json = nlohmann::json;
 
-using TokSequenceInt = std::vector<int32_t>;
 using Score = std::vector<int32_t>;
 
 
@@ -106,14 +105,22 @@ public:
             
     }
 
-    TokSequenceInt encode(const Score& score);
+    std::vector<int32_t> encode(const Score& score);
     Score decode(const std::vector<int32_t>& tokens);
+
+    // custom
+    void decodeIDs(const std::vector<int32_t>& tokens, std::vector<int32_t>& outTokens);
 
     // @TODO : optimize
     std::function<int(const std::string&)> vocab = [this](const std::string& v) -> int
     {
         return _vocab_base.at(v);
     };
+
+    const std::map<std::string, int32_t>& GetVocabBase() const
+    {
+        return _vocab_base;
+    }
 
 
     // Decode the ids of a :class:`miditok.TokSequence` with BPE, Unigram or WordPiece.

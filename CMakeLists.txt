@@ -30,7 +30,9 @@ add_subdirectory(${TOKENZIER_CPP_PATH} tokenizers EXCLUDE_FROM_ALL)
 
 
 # Add the executable
-add_executable(MidiTokCpp src/main.cpp src/midiTokenizer.cpp)
+file(GLOB SOURCES "src/*.cpp")
+add_executable(MidiTokCpp ${SOURCES})
+# add_executable(MidiTokCpp src/main.cpp src/midiTokenizer.cpp)
 
 # Include directories
 target_include_directories(MidiTokCpp PRIVATE include)

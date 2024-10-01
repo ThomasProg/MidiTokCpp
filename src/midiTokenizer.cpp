@@ -1,6 +1,169 @@
 #include "midiTokenizer.hpp"
 
 #include <memory>
+#include <string>
+#include <codecvt>
+
+// Function to get the number of bytes in a UTF-8 character based on the first byte
+size_t utf8_char_length(unsigned char c) {
+    if (c == 0xC4)
+    {
+        return 2;
+    }
+    else 
+    {
+        return 1;
+    }
+}
+
+#include <sstream>
+std::string escape_invalid_characters(const std::string& str) {
+    std::ostringstream oss;
+
+    for (unsigned char c : str) {
+        // Check if the character is valid (ASCII range)
+        if (c < 32 || c > 126) {
+            // Escape the character as hexadecimal
+            oss << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
+        } else {
+            // Add valid characters as-is
+            oss << c;
+        }
+    }
+
+    return oss.str();
+}
+
+void printAsAscii(const std::string& str) {
+    // Set the locale to the user's locale
+    std::locale::global(std::locale("en_US.UTF-8"));
+
+
+    // Convert key and value to wstring (wide string)
+    std::string s = escape_invalid_characters(str);
+    
+    std::cout << s;
+}
+
+void MidiTokenizer::__create_vocab_learned_bytes_to_tokens()
+{
+    std::map<std::string, int32_t> vocab = _model->GetVocab(); 
+
+
+    // for (auto& [key, value] : _vocab_learned_bytes_to_tokens)
+    // {
+    //     std::cout << key << ": \n";
+    //     for (auto& v : value)
+    //     {
+    //         std::cout << " - " << v << '\n';
+    //     }
+    //     std::cout << '\n';
+    // }
+
+    for (auto& [key, value] : _vocab_base_byte_to_token)
+    {
+        printAsAscii(key);
+        std::cout << ": ";
+        printAsAscii(value);
+        std::cout << '\n';
+    }
+
+    for (auto& [k, value] : vocab)
+    {
+        // @TODO : continuing_subword_prefix / end_of_word_suffix
+
+
+        std::string key_ = k;
+
+        std::string replacement = "_";
+        if (key_ != replacement && key_.compare(0, replacement.length(), replacement) == 0) 
+        {
+            key_.erase(0, replacement.length());
+        }
+
+
+
+        std::vector<std::string> token_vector;
+        token_vector.reserve(k.size());
+
+        for (size_t i = 0; i < key_.size(); ) {
+            size_t char_len = utf8_char_length(static_cast<unsigned char>(key_[i]));
+            std::string utf8_char = key_.substr(i, char_len);  // Extract character
+
+            // std::cout << "UTF-8 character: " << utf8_char << std::endl;
+            token_vector.push_back(_vocab_base_byte_to_token.at(utf8_char));
+
+
+            i += char_len;  // Move to the next character
+        }
+
+
+        // for (wchar_t byte : key_)
+        // {
+        //     token_vector.push_back(_vocab_base_byte_to_token.at(std::string(&byte, 1)));
+        // }
+
+        assert(!token_vector.empty());
+        _vocab_learned_bytes_to_tokens[k] = std::move(token_vector);
+    }
+
+
+    // // Get the vocabulary size
+    // size_t vocab_size = _model->GetVocabSize();
+
+    // // Iterate over vocabulary IDs to simulate Python's get_vocab()
+    // for (int32_t id = 0; id < vocab_size; ++id) {
+    //     // Get the token corresponding to the vocab ID
+    //     std::string k = _model->IdToToken(id);
+    //     std::string key_ = k;
+
+    //     char replacement = '_';
+    //     if (key_.size() > 1 && key_[0] == replacement)
+    //     {
+    //         key_.erase(0);
+    //         // key_.erase(0, replacement.length());
+    //     }
+
+    //     assert(!key_.empty());
+
+    //     // For each token, fill the learned_bytes_to_tokens map
+    //     std::vector<std::string> token_vector;
+    //     for (char byte : key_) {
+    //         // Convert each byte in the token to its corresponding learned token
+    //         token_vector.push_back(_vocab_base_byte_to_token.at(std::string(&byte, 1)));
+    //     }
+
+    //     // Insert the token and its corresponding learned tokens into the map
+    //     assert(!token_vector.empty());
+    //     _vocab_learned_bytes_to_tokens[k] = token_vector;
+    // }
+}
+
+std::string decode_utf8_to_binary(const std::string& utf8_string) {
+
+    std::uint8_t firstByte = static_cast<std::uint8_t>(utf8_string[0]); 
+    if (firstByte < 0x80)
+    {
+        return utf8_string;
+    }
+
+    else if (firstByte == 0xC2)
+    {
+        return std::string(&utf8_string[1], 1);
+    }
+
+    else if (firstByte == 0xC3)
+    {
+        char newChar = utf8_string[1] + (0xc0 - 0x80);
+        return std::string(&newChar, 1);
+    }
+
+    return utf8_string;
+}
+
+
+
+
 
 void MidiTokenizer::loadFromJson(const std::string& filename)
 {
@@ -49,13 +212,30 @@ void MidiTokenizer::loadFromJson(const std::string& filename)
         {
             for (auto& [k, v] : value.items())
             {
-                _vocab_base_byte_to_token[k[0]] = v;
+                assert(k.size() <= 2);
+                std::string k2 = decode_utf8_to_binary(k);
+                std::string vStr = v.template get<std::string>();
+                // if (k2.size() == 1)
+                // {
+                //     std::cout << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(k2[0]); // Display each character as hex
+                //     std::cout << ": " << vStr << std::endl;
+                // }
+                // else 
+                // {
+                //     std::cout << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(k2[0]); // Display each character as hex
+                //     std::cout << " ";
+                //     std::cout << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(k2[1]); // Display each character as hex
+                //     std::cout << ": " << vStr << std::endl;
+                // }
+
+
+                _vocab_base_byte_to_token[k2] = std::move(vStr);
             }
 
-            std::map<std::string, char> tokenToByte;
+            std::map<std::string, std::string> tokenToByte;
             for (auto& [k, v] : value.items())
             {
-                tokenToByte[v] = k[0];
+                tokenToByte[v] = k;
             }
 
             for (auto& [tok, i] : _vocab_base)
@@ -101,9 +281,141 @@ TokSequenceInt MidiTokenizer::encode(const Score& score)
     return TokSequenceInt();
 }
 
+TokSequence MidiTokenizer::_convert_sequence_to_tokseq(const std::vector<int32_t>& tokens)
+{
+    // std::vector<> seq;
+
+    // for (const int32_t& obj : tokens)
+    // {
+
+    // }
+    TokSequence tokSequence;
+    tokSequence.ids = tokens;
+    tokSequence.are_ids_encoded = _are_ids_encoded(tokens);
+    return tokSequence;
+}
+
+bool MidiTokenizer::_are_ids_encoded(const std::vector<int32_t>& tokens) const
+{
+    return true;
+}
+
+void MidiTokenizer::_preprocess_tokseq_before_decoding(TokSequence& seq)
+{
+    if (seq.tokens.size() == 0)
+    {
+        if (seq.are_ids_encoded)
+        {
+            decode_token_ids(seq);
+        }
+        complete_sequence(seq);
+    }
+}
+
+void MidiTokenizer::complete_sequence(TokSequence& seq, bool complete_bytes)
+{
+    if (seq.tokens.empty())
+    {
+        throw std::logic_error("Unimplemented");
+
+        // if len(seq.events) > 0:
+        //     seq.tokens = self._events_to_tokens(seq.events)
+        // elif len(seq.ids) > 0:
+        //     seq.tokens = self._ids_to_tokens(seq.ids)
+        // elif len(seq.bytes) > 0:
+        //     seq.tokens = self._bytes_to_tokens(seq.bytes)
+    }
+
+    if (seq.ids.empty())
+    {
+        seq.ids = _tokens_to_ids(seq.tokens);
+    }
+
+    if (complete_bytes && is_trained() && seq.bytes.empty())
+    {
+        throw std::logic_error("Unimplemented");
+        // seq.bytes = _ids_to_bytes(seq.ids);
+    }
+}
+
+std::vector<int32_t> MidiTokenizer::_tokens_to_ids(const std::vector<std::string>& tokens)
+{
+    if (tokens.empty())
+        return std::vector<int32_t>();
+
+    std::vector<int32_t> ids;
+    ids.reserve(tokens.size());
+    for (const std::string& token : tokens)
+    {
+        ids.push_back(vocab(token));
+    }
+    return ids; 
+}
+
+void MidiTokenizer::decode_token_ids(TokSequence& seq)
+{
+    if (seq.are_ids_encoded)
+    {
+        std::vector<std::string> encoded_bytes(seq.ids.size()); 
+        for (size_t i = 0; i < seq.ids.size(); i++)
+        {
+            auto& id_ = seq.ids[i];
+            encoded_bytes[i] = _model->IdToToken(id_);
+            assert(!encoded_bytes[i].empty()); // if empty, it means id hasn't been found
+        } 
+
+        std::vector<std::string> decoded_tokens;
+        decoded_tokens.reserve(encoded_bytes.size()); 
+        for (std::string& byte_ : encoded_bytes)
+        {
+            const std::vector<std::string>& decoded = _vocab_learned_bytes_to_tokens.at(byte_); 
+            assert(!decoded.empty());
+            decoded_tokens.insert(decoded_tokens.end(), decoded.begin(), decoded.end());
+        }  
+
+        seq.tokens = decoded_tokens;
+
+        // @TODO : Necessary???
+        seq.ids = _tokens_to_ids(decoded_tokens);
+        seq.are_ids_encoded = false;
+    }
+}
+
+Score MidiTokenizer::_tokens_to_score(const TokSequence& seq)
+{
+    // # Unsqueeze tokens in case of one_token_stream
+    // if self.config.one_token_stream_for_programs:  # ie single token seq
+    //     tokens = [tokens]
+
+    // std::vector<std::string> tokens;
+    // tokens.push_back(seq.tokens);
+
+    Score score = Score();
+    // score.time_division = time_division;
+
+    // for (size_t i = 0; i < seq.length(); i++)
+    // {
+    //     tokens.push_back(seq[i].tokens);
+    // }
+
+    return score;
+}
+
 Score MidiTokenizer::decode(const TokSequenceInt& tokens)
 {
-    return Score();
+    TokSequence tokSequence = _convert_sequence_to_tokseq(tokens);
+
+    _preprocess_tokseq_before_decoding(tokSequence);
+
+    Score score = _tokens_to_score(tokSequence);
+
+
+    return score;
+}
+
+bool MidiTokenizer::is_trained() const
+{
+    return _model.get() != nullptr;
 }
 
     // def decode(

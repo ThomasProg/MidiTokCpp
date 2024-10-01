@@ -239,36 +239,7 @@ int main()
         attention_mask_v_rf.push_back(Input::DataType(1));
     }
 
-    // Memory info for the input tensor
-    // Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-    // std::vector<Ort::Value> inputDataTensors;
-
-    int64_t nbBatches = 1;
-    // std::vector<int64_t> input_shape = {nbBatches, static_cast<int64_t>(input.inputData.front().size())};
-    // for (size_t i = 0; i < input.inputData.size(); i++)
-    // {
-    //     std::vector<Input::DataType>& inputData = input.inputData[i];
-    //     input.inputDataTensors.push_back(Ort::Value::CreateTensor<Input::DataType>(input.memory_info, inputData.data(), inputData.size() * sizeof(Input::DataType), input_shape.data(), input_shape.size()));
-    // }
-
     updateInputTensors(input);
-
-
-    // // Memory info for the input tensor
-    // Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-    // std::vector<Ort::Value> inputDataTensors;
-
-    // int64_t nbBatches = 1;
-    // std::vector<int64_t> input_shape = {nbBatches, static_cast<int64_t>(input.inputData.front().size())};
-    // for (std::vector<Input::DataType>& inputData : input.inputData)
-    // {
-    //     inputDataTensors.push_back(Ort::Value::CreateTensor<Input::DataType>(memory_info, inputData.data(), inputData.size() * sizeof(Input::DataType), input_shape.data(), input_shape.size()));
-    // }
-
-
-
-
-
 
     // Update Past
     int64_t past_shape[] = {
@@ -294,7 +265,7 @@ int main()
 
 
 
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 1; i++)
     {
         generator.generate(input);
     }
@@ -305,47 +276,5 @@ int main()
 
     }
 
-    // // displayModelInputsInfo(*session.get());
-
-
-    // // Set sequence generation parameters
-    // const int max_sequence_length = 1024;   // Set a max length to prevent infinite loop
-    // // const int64_t end_token_id = 102;     // Example end token ID
-    // // const int64_t start_token_id = 101;   // Example start token ID
-
-
-    // Score baseScore = Score();
-    // // baseScore.push_back(0);
-
-    // // Initial input: start token
-    // std::vector<int64_t> input_data = tokenizer.encode(baseScore);
-    // input_data.push_back(942);
-
-    // std::vector<int64_t> output_data;
-    
-    // try 
-    // {
-    //     output_data = generate(*session.get(), input_data, max_sequence_length);
-    // }
-    // catch(const Ort::Exception& e)
-    // {
-    //     std::cout << "Error occurred: " << e.what() << std::endl;           // Error message
-    //     std::cout << "Error code: " << e.GetOrtErrorCode() << std::endl;    // Error code
-    //     exit(1);
-    // }
-
-
-    // // Print the generated sequence
-    // std::cout << "Generated sequence: ";
-    // for (const auto& token : output_data) {
-    //     std::cout << token << " ";
-    // }
-    // std::cout << std::endl;
-
-    // Score newScore = tokenizer.decode(output_data);
-
-    // // // Cleanup dynamically allocated memory for input/output names
-    // // Ort::AllocatorWithDefaultOptions().Free((void*)input_name);
-    // // Ort::AllocatorWithDefaultOptions().Free((void*)output_name);
-
+    generator.tokenizer->decode(input.inputData[0]);
 }

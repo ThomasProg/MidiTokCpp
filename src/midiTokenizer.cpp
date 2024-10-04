@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <codecvt>
+// #include "utf8.h"
 
 // Function to get the number of bytes in a UTF-8 character based on the first byte
 size_t utf8_char_length(unsigned char c) {
@@ -45,6 +46,71 @@ void printAsAscii(const std::string& str) {
     std::cout << s;
 }
 
+// std::vector<std::string> split_utf8_string(const std::string& input) {
+//     std::vector<std::string> characters; // To hold resulting characters
+//     size_t i = 0;
+
+//     while (i < input.size()) {
+//         unsigned char byte = static_cast<unsigned char>(input[i]); // Treat as unsigned
+
+//         // Determine number of bytes in this UTF-8 character
+//         size_t num_bytes = 0;
+//         if ((byte & 0x80) == 0) {
+//             // 1-byte character (0xxxxxxx)
+//             num_bytes = 1;
+//         } else if ((byte & 0xE0) == 0xC0) {
+//             // 2-byte character (110xxxxx)
+//             num_bytes = 2;
+//         } else if ((byte & 0xF0) == 0xE0) {
+//             // 3-byte character (1110xxxx)
+//             num_bytes = 3;
+//         } else if ((byte & 0xF8) == 0xF0) {
+//             // 4-byte character (11110xxx)
+//             num_bytes = 4;
+//         } else {
+//             // Invalid byte; skip it or handle error
+//             i++;
+//             continue;
+//         }
+
+//         // Collect the bytes for the character
+//         if (i + num_bytes <= input.size()) {
+//             std::string character = input.substr(i, num_bytes); // Get substring for the character
+//             characters.push_back(character); // Store the character
+//         }
+
+//         i += num_bytes; // Move index forward by number of bytes
+//     }
+
+//     return characters;
+// }
+
+// Function to split a UTF-8 string into its individual characters
+std::vector<std::string> split_utf8(const std::string& str) {
+    std::vector<std::string> result;
+    size_t i = 0;
+
+    while (i < str.size()) {
+        unsigned char c = str[i];
+        size_t char_len = 1;
+
+        // Determine the length of the current UTF-8 character
+        if (c >= 0xF0) {        // 4-byte character
+            char_len = 4;
+        } else if (c >= 0xE0) { // 3-byte character
+            char_len = 3;
+        } else if (c >= 0xC0) { // 2-byte character
+            char_len = 2;
+        }
+
+        // Extract the UTF-8 character
+        result.push_back(str.substr(i, char_len));
+        i += char_len;
+    }
+
+    return result;
+}
+
 void MidiTokenizer::__create_vocab_learned_bytes_to_tokens()
 {
     std::map<std::string, int32_t> vocab = _model->GetVocab(); 
@@ -75,8 +141,8 @@ void MidiTokenizer::__create_vocab_learned_bytes_to_tokens()
 
         std::string key_ = k;
 
-        std::string replacement = "_";
-        if (key_ != replacement && key_.compare(0, replacement.length(), replacement) == 0) 
+        std::string replacement = "\xe2\x96\x81";
+        if (key_.compare(0, replacement.length(), replacement) == 0) 
         {
             key_.erase(0, replacement.length());
         }
@@ -86,24 +152,91 @@ void MidiTokenizer::__create_vocab_learned_bytes_to_tokens()
         std::vector<std::string> token_vector;
         token_vector.reserve(k.size());
 
-        for (size_t i = 0; i < key_.size(); ) {
-            size_t char_len = utf8_char_length(static_cast<unsigned char>(key_[i]));
-            std::string utf8_char = key_.substr(i, char_len);  // Extract character
+        // Split the string
+        std::vector<std::string> split_str = split_utf8(key_);
 
-            // std::cout << "UTF-8 character: " << utf8_char << std::endl;
-            token_vector.push_back(_vocab_base_byte_to_token.at(utf8_char));
-
-
-            i += char_len;  // Move to the next character
+        // Output the split parts
+        for (const std::string& part : split_str) {
+            token_vector.push_back(_vocab_base_byte_to_token.at(part));
         }
 
+        // for (size_t i = 0; i < key_.size(); ) {
+        //     size_t char_len = utf8_char_length(static_cast<unsigned char>(key_[i]));
+        //     std::string utf8_char = key_.substr(i, char_len);  // Extract character
 
-        // for (wchar_t byte : key_)
+        //     // std::cout << "UTF-8 character: " << utf8_char << std::endl;
+        //     token_vector.push_back(_vocab_base_byte_to_token.at(utf8_char));
+
+        //     if (token_vector.back() == "Bar_None")
+        //     {
+        //         std::cout << k << std::endl;
+        //     }
+
+
+        //     i += char_len;  // Move to the next character
+        // }
+
+
+        // for (char byte : key_)
         // {
         //     token_vector.push_back(_vocab_base_byte_to_token.at(std::string(&byte, 1)));
         // }
 
-        assert(!token_vector.empty());
+
+        // // Create a UTF-8 iterator
+        // utf8::iterator<std::string::iterator> it(key_.begin(), key_.begin(), key_.end());
+        // utf8::iterator<std::string::iterator> end(key_.end(), key_.begin(), key_.end());
+
+        // // Loop through the UTF-8 string
+        // while (it != end) {
+        //     // uint32_t codepoint = *it; // Get the current UTF-32 code point
+
+        //     it->
+
+        //     token_vector.push_back(_vocab_base_byte_to_token.at(std::string(&byte, 1)));
+
+        //     // // Print the code point in hexadecimal format
+        //     // std::cout << "Codepoint: " << std::hex << codepoint << std::endl;
+
+        //     // // Print the UTF-8 character
+        //     // std::cout << "Character: " << utf8::utf32to8(codepoint) << std::endl;
+
+        //     // Advance the iterator
+        //     ++it;
+        // }
+
+
+        // std::vector<std::string> result = split_utf8_string(key_);
+
+        // // Output each character
+        // for (const auto& character : result) {
+        //     // std::cout << "Character: " << character << std::endl;
+        //     token_vector.push_back(_vocab_base_byte_to_token.at(character));
+        // }
+
+        // for (size_t i = 0; i < key_.size(); ) {
+        //     int len = 0;
+        //     const char* s = key_.data();
+        //     while (*s) len += (*s++ & 0xc0) != 0x80;
+
+        //     // size_t char_len = utf8_char_length(static_cast<unsigned char>(key_[i]));
+        //     std::string utf8_char = key_.substr(i, len);  // Extract character
+
+        //     // std::cout << "UTF-8 character: " << utf8_char << std::endl;
+        //     token_vector.push_back(_vocab_base_byte_to_token.at(utf8_char));
+
+        //     if (token_vector.back() == "Bar_None")
+        //     {
+        //         std::cout << k << std::endl;
+        //     }
+
+
+        //     i += len;  // Move to the next character
+        // }
+
+
+
+        // assert(!token_vector.empty());
         _vocab_learned_bytes_to_tokens[k] = std::move(token_vector);
     }
 
@@ -203,8 +336,26 @@ void MidiTokenizer::loadFromJson(const std::string& filename)
 
         if (key == "_model")
         {
+            // std::string v = value.dump();
+            // v = v.substr(1, v.size() - 2);
             std::string v = value.template get<std::string>();
+
+            // std::ifstream file("C:/Users/thoma/Documents/Unreal Projects/MIDITokCpp/model_arg.bin", std::ios::binary);  // Open file in binary mode
+            // if (file) {
+            //     // Move the cursor to the end of the file
+            //     file.seekg(0, std::ios::end);
+            //     // Get the file size
+            //     std::streamsize size = file.tellg();
+            //     file.seekg(0, std::ios::beg);
+
+            //     // Create a string to hold the contents
+            //     std::string buffer(size, '\0');  // Create string with 'size' characters initialized to null
+            //     if (file.read(&buffer[0], size)) {
+            //         std::cout << "File content as bytes: \n" << buffer << std::endl;
+            //     }
+
             _model = tokenizers::Tokenizer::FromBlobJSON(v);
+            // }
             continue;
         }
 
@@ -212,24 +363,34 @@ void MidiTokenizer::loadFromJson(const std::string& filename)
         {
             for (auto& [k, v] : value.items())
             {
-                assert(k.size() <= 2);
-                std::string k2 = decode_utf8_to_binary(k);
+                // assert(k.size() <= 2);
+                // std::string k2 = decode_utf8_to_binary(k);
                 std::string vStr = v.template get<std::string>();
-                // if (k2.size() == 1)
-                // {
-                //     std::cout << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(k2[0]); // Display each character as hex
-                //     std::cout << ": " << vStr << std::endl;
-                // }
-                // else 
-                // {
-                //     std::cout << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(k2[0]); // Display each character as hex
-                //     std::cout << " ";
-                //     std::cout << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(k2[1]); // Display each character as hex
-                //     std::cout << ": " << vStr << std::endl;
+
+                // // if (k2.size() == 1)
+                // // {
+                // //     std::cout << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(k2[0]); // Display each character as hex
+                // //     std::cout << ": " << vStr << std::endl;
+                // // }
+                // // else 
+                // // {
+                // //     std::cout << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(k2[0]); // Display each character as hex
+                // //     std::cout << " ";
+                // //     std::cout << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(k2[1]); // Display each character as hex
+                // //     std::cout << ": " << vStr << std::endl;
+                // // }
+
+                // // Split the string
+                // std::vector<std::string> split_str = split_utf8(key_);
+
+                // // Output the split parts
+                // for (const std::string& part : split_str) {
+                //     token_vector.push_back(_vocab_base_byte_to_token.at(part));
                 // }
 
+                assert(_vocab_base_byte_to_token.count(k) == 0);
 
-                _vocab_base_byte_to_token[k2] = std::move(vStr);
+                _vocab_base_byte_to_token[k] = std::move(vStr);
             }
 
             std::map<std::string, std::string> tokenToByte;

@@ -31,15 +31,24 @@ add_subdirectory(${TOKENZIER_CPP_PATH} tokenizers EXCLUDE_FROM_ALL)
 
 # Add the executable
 file(GLOB SOURCES "src/*.cpp")
+list(REMOVE_ITEM SOURCES "${CMAKE_SOURCE_DIR}/src/main.c")
 add_executable(MidiTokCppTest ${SOURCES})
 
-list(REMOVE_ITEM SOURCES "src/main.cpp")
-add_library(MidiTokCpp SHARED ${SOURCES})
+# Add the executable
+file(GLOB SOURCES2 "src/*.cpp" "src/*.cc")
+list(REMOVE_ITEM SOURCES2 "${CMAKE_SOURCE_DIR}/src/main.cpp")
+add_executable(MidiTokCppTestC ${SOURCES2})
+
+file(GLOB SOURCES3 "src/*.cpp")
+list(REMOVE_ITEM SOURCES3 "${CMAKE_SOURCE_DIR}/src/main.cpp")
+list(REMOVE_ITEM SOURCES3 "${CMAKE_SOURCE_DIR}/src/main.cc")
+add_library(MidiTokCpp SHARED ${SOURCES3})
 target_compile_definitions(MidiTokCpp PRIVATE BUILD_DLL)
 
 # Include directories
 target_include_directories(MidiTokCpp PRIVATE include)
 target_include_directories(MidiTokCppTest PRIVATE include)
+target_include_directories(MidiTokCppTestC PRIVATE include)
 
 
 
@@ -47,10 +56,12 @@ target_include_directories(MidiTokCppTest PRIVATE include)
 
 target_include_directories(MidiTokCpp PRIVATE ${TOKENZIER_CPP_PATH}/include)
 target_include_directories(MidiTokCppTest PRIVATE ${TOKENZIER_CPP_PATH}/include)
+target_include_directories(MidiTokCppTestC PRIVATE ${TOKENZIER_CPP_PATH}/include)
 # You can link tokenizers_cpp, it will automatically link tokenizers_c
 # and sentencepiece libary
 target_link_libraries(MidiTokCpp PRIVATE tokenizers_cpp)
 target_link_libraries(MidiTokCppTest PRIVATE tokenizers_cpp)
+target_link_libraries(MidiTokCppTestC PRIVATE tokenizers_cpp)
 
 
 set(ONNXRUNTIME_ROOTDIR 
@@ -72,6 +83,9 @@ target_include_directories(MidiTokCpp PUBLIC
 target_include_directories(MidiTokCppTest PUBLIC
     "${ONNXRUNTIME_ROOTDIR}/build/native/include"                           # Pre-built package
 )
+target_include_directories(MidiTokCppTestC PUBLIC
+    "${ONNXRUNTIME_ROOTDIR}/build/native/include"                           # Pre-built package
+)
 target_link_directories(MidiTokCpp PUBLIC "${ONNXRUNTIME_ROOTDIR}/runtimes/win-x64/native")
 target_link_libraries(MidiTokCpp PUBLIC 
     ${ONNX_RUNTIME} 
@@ -79,6 +93,10 @@ target_link_libraries(MidiTokCpp PUBLIC
 
 target_link_directories(MidiTokCppTest PUBLIC "${ONNXRUNTIME_ROOTDIR}/runtimes/win-x64/native")
 target_link_libraries(MidiTokCppTest PUBLIC 
+    ${ONNX_RUNTIME} 
+)
+target_link_directories(MidiTokCppTestC PUBLIC "${ONNXRUNTIME_ROOTDIR}/runtimes/win-x64/native")
+target_link_libraries(MidiTokCppTestC PUBLIC 
     ${ONNX_RUNTIME} 
 )
 
@@ -97,6 +115,13 @@ add_custom_target(runTest
     DEPENDS MidiTokCppTest
 )
 
+# Specify a custom working directory when running the executable
+add_custom_target(runTestC
+    COMMAND MidiTokCppTestC
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS MidiTokCppTestC
+)
+
 # Optionally, copy the .dll to the build directory
 add_custom_command(TARGET MidiTokCpp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -107,5 +132,11 @@ add_custom_command(TARGET MidiTokCpp POST_BUILD
 add_custom_command(TARGET MidiTokCppTest POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${CMAKE_CURRENT_LIST_DIR}/${ONNXRUNTIME_ROOTDIR}/runtimes/win-x64/native/onnxruntime.dll" $<TARGET_FILE_DIR:MidiTokCppTest>
+)
+
+# Optionally, copy the .dll to the build directory
+add_custom_command(TARGET MidiTokCppTestC POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_LIST_DIR}/${ONNXRUNTIME_ROOTDIR}/runtimes/win-x64/native/onnxruntime.dll" $<TARGET_FILE_DIR:MidiTokCppTestC>
 )
 

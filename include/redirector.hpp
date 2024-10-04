@@ -8,8 +8,10 @@ class Redirector
 {
     struct Callback
     {
+        using TCallback = std::function<void(void*)>;
+
         void* data;
-        std::function<void(void*)> callback;
+        TCallback callback;
 
         void call()
         {
@@ -20,6 +22,11 @@ class Redirector
     std::unordered_map<int32_t, Callback> tokenToCallback;
 
 public:
-    void call(int32_t token);
-    void bindPitch(const class MidiTokenizer& tokenizer, const std::string& newKey, void (*newCallback)(void*, unsigned char/*int8*/ pitch), void* data = nullptr);
+    bool tryCall(int32_t token);
+
+    void bind(const class MidiTokenizer& tokenizer, const std::string& newKey, std::function<Callback::TCallback(std::string&& str)> bindWithParams, void* data = nullptr);
+
+    void bindPitch(const class MidiTokenizer& tokenizer, const std::string& newKey, void (*newCallback)(void*, std::uint8_t pitch), void* data = nullptr);
+    void bindPosition(const class MidiTokenizer& tokenizer, const std::string& newKey, void (*newCallback)(void*, std::uint8_t position), void* data = nullptr);
+    void bindBar(const class MidiTokenizer& tokenizer, const std::string& newKey, void (*newCallback)(void*, std::uint8_t bar, bool isBarNone), void* data = nullptr);
 };

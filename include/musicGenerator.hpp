@@ -7,7 +7,7 @@
 
 struct Input
 {
-    using DataType = int32_t;
+    using DataType = std::int32_t;
 
     std::vector<std::string> inputNames;
 

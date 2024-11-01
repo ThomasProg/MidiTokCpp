@@ -11,27 +11,11 @@
 
 #include "tokenizers_cpp.h"
 
+#include "tokenSequence.h"
+
 using json = nlohmann::json;
 
 using Score = std::vector<int32_t>;
-
-
-class TokSequence
-{
-public:
-    std::vector<int32_t> ids; // potentially encoded tokens
-    bool are_ids_encoded;
-
-    std::vector<std::string> tokens; // decoded tokens
-
-    std::string bytes;
-
-    size_t length() const
-    {
-        assert(!ids.empty()); // if 0, return size of bytes or tokens or events
-        return ids.size();
-    }
-};
 
 
 
@@ -149,6 +133,118 @@ public:
     void complete_sequence(TokSequence& seq, bool complete_bytes = false);
 
     bool is_trained() const;
+
+
+
+public:
+    // Optimized conversions
+    // @TODO : implement directly with hashmaps
+
+    bool isBarNone(std::int32_t token)
+    {
+        std::string str = __vocab_base_inv.at(token);
+
+        // auto it = std::find(str.begin(), str.end(), '_');
+        // std::int32_t typeSize = it - str.begin();
+        // std::string type = str.substr(0, typeSize);
+        // std::string value = str.substr(it - str.begin(), str.size() - typeSize);
+
+        return str == "Bar_None";
+    }
+
+    bool isPosition(std::int32_t token)
+    {
+        std::string str = __vocab_base_inv.at(token);
+
+        auto it = std::find(str.begin(), str.end(), '_');
+        std::int32_t typeSize = std::int32_t(it - str.begin());
+        std::string type = str.substr(0, typeSize);
+
+        return type == "Position";
+    }
+
+    std::int32_t getPositionValue(std::int32_t token)
+    {
+        std::string str = __vocab_base_inv.at(token);
+
+        auto it = std::find(str.begin(), str.end(), '_');
+        std::int32_t typeSize = std::int32_t(it - str.begin());
+        // std::string type = str.substr(0, typeSize);
+        std::string value = str.substr(it - str.begin()+1, str.size() - typeSize-1);
+
+        return std::stoi(value);
+    }
+
+    bool isPitch(std::int32_t token)
+    {
+        std::string str = __vocab_base_inv.at(token);
+
+        auto it = std::find(str.begin(), str.end(), '_');
+        std::int32_t typeSize = std::int32_t(it - str.begin());
+        std::string type = str.substr(0, typeSize);
+
+        return type == "Pitch";
+    }
+
+    std::int32_t getPitchValue(std::int32_t token)
+    {
+        std::string str = __vocab_base_inv.at(token);
+
+        auto it = std::find(str.begin(), str.end(), '_');
+        std::int32_t typeSize = std::int32_t( it - str.begin());
+        // std::string type = str.substr(0, typeSize);
+        std::string value = str.substr(it - str.begin()+1, str.size() - typeSize-1);
+
+        return std::stoi(value);
+    }
+
+    bool isDuration(std::int32_t token)
+    {
+        std::string str = __vocab_base_inv.at(token);
+
+        auto it = std::find(str.begin(), str.end(), '_');
+        std::int32_t typeSize = std::int32_t(it - str.begin());
+        std::string type = str.substr(0, typeSize);
+
+        return type == "Duration";
+    }
+
+    std::int32_t getDurationValue(std::int32_t token)
+    {
+        std::string str = __vocab_base_inv.at(token);
+
+        auto it = std::find(str.begin(), str.end(), '_');
+        std::int32_t typeSize = std::int32_t( it - str.begin());
+        // std::string type = str.substr(0, typeSize);
+        std::string value = str.substr(it - str.begin()+1, str.size() - typeSize-1);
+
+        return std::stoi(value);
+    }
+
+    bool isVelocity(std::int32_t token)
+    {
+        std::string str = __vocab_base_inv.at(token);
+
+        auto it = std::find(str.begin(), str.end(), '_');
+        std::int32_t typeSize = std::int32_t(it - str.begin());
+        std::string type = str.substr(0, typeSize);
+
+        return type == "Velocity";
+    }
+
+    std::int32_t getVelocityValue(std::int32_t token)
+    {
+        std::string str = __vocab_base_inv.at(token);
+
+        auto it = std::find(str.begin(), str.end(), '_');
+        std::int32_t typeSize = std::int32_t( it - str.begin());
+        // std::string type = str.substr(0, typeSize);
+        std::string value = str.substr(it - str.begin()+1, str.size() - typeSize-1);
+
+        return std::stoi(value);
+    }
+
+
 };
 
 

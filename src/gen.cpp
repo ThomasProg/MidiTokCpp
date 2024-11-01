@@ -3,6 +3,7 @@
 #include "musicGenerator.hpp"
 #include "redirector.hpp"
 #include "midiTokenizer.hpp"
+#include "midiConverter.hpp"
 
 extern "C" 
 {
@@ -71,6 +72,15 @@ void destroyRedirector(RedirectorHandle redirector)
     delete redirector;
 }
 
+TokenSequenceHandle createTokenSequence()
+{
+    return new TokenSequence();
+}
+void destroyTokenSequence(TokenSequenceHandle tokenSequence)
+{
+    delete tokenSequence;
+}
+
 void redirector_bindPitch(RedirectorHandle redirector, const MidiTokenizerHandle tokenizer, const char* prefix, void* data, void(*callback)(void*, std::uint8_t pitch))
 {
     redirector->bindPitch(*tokenizer, prefix, callback, data);
@@ -115,12 +125,52 @@ void tokenizer_decodeIDs_free(std::int32_t* outputIDs)
 }
 
 
+bool isBarNone(MidiTokenizerHandle tokenizer, std::int32_t token)
+{
+    return tokenizer->isBarNone(token);
+}
+bool isPosition(MidiTokenizerHandle tokenizer, std::int32_t token)
+{
+    return tokenizer->isPosition(token);
+}
+bool isPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
+{
+    return tokenizer->isPitch(token);
+}
+
+std::int32_t getPosition(MidiTokenizerHandle tokenizer, std::int32_t token)
+{
+    return tokenizer->getPositionValue(token);
+}
+std::int32_t getPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
+{
+    return tokenizer->getPitchValue(token);
+}
 
 
 
+MidiConverterHandle createMidiConverter()
+{
+    return new MIDIConverter();
+}
+void destroyMidiConverter(MidiConverterHandle converter)
+{
+    delete converter;
+}
 
+void converterSetOnNote(MidiConverterHandle converter, void (*onNote)(void* data, const Note&))
+{
+    converter->onNote = onNote;
+}
+void converterProcessToken(MidiConverterHandle converter, const int32_t* tokens, int32_t nbTokens, std::int32_t index, void* data)
+{
+    converter->processToken(tokens, nbTokens, index, data);
+}
 
-
+void converterSetTokenizer(MidiConverterHandle converter, MidiTokenizerHandle tokenizer)
+{
+    converter->tokenizerHandle = tokenizer;
+}
 
 
 

@@ -143,8 +143,8 @@ void MusicGenerator::generate(Input& input)
 
         // @TODO : batch support
         input.inputData[0].push_back(next_tokens[b]);
-        input.inputData[1].push_back(Input::DataType(input.inputData[0].size()));
-        input.inputData[2].push_back(1);
+        input.inputData[1].push_back(1);
+        input.inputData[2].push_back(Input::DataType(input.inputData[0].size()-1));
     }
 
 
@@ -157,21 +157,21 @@ Input MusicGenerator::generateInput(std::vector<Input::DataType>&& inputTokens)
     Input input;
     
     input.inputNames.push_back("input_ids");
-    input.inputNames.push_back("position_ids");
     input.inputNames.push_back("attention_mask");
+    input.inputNames.push_back("position_ids");
 
     input.inputData.emplace_back(std::move(inputTokens));
     input.inputData.emplace_back();
     input.inputData.emplace_back();
 
     const std::vector<Input::DataType>& input_ids_v_rf = input.inputData[0];
-    std::vector<Input::DataType>& position_ids_v_rf = input.inputData[1];
-    std::vector<Input::DataType>& attention_mask_v_rf = input.inputData[2];
+    std::vector<Input::DataType>& attention_mask_v_rf = input.inputData[1];
+    std::vector<Input::DataType>& position_ids_v_rf = input.inputData[2];
 
     for (size_t i = 0; i < input_ids_v_rf.size(); i++)
     {
-        position_ids_v_rf.push_back(Input::DataType(i));
         attention_mask_v_rf.push_back(Input::DataType(1));
+        position_ids_v_rf.push_back(Input::DataType(i));
     }
 
     MusicGenerator::updateInputTensors(input);

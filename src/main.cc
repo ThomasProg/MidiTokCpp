@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <chrono>
 
 #include "gen.h"
 
@@ -16,6 +17,8 @@ void OnPitch(void* data, unsigned char pitch)
 
 int main()
 {
+	std::cout << "Workspace path : " << WORKSPACE_PATH << std::endl;
+
 	EnvHandle env = createEnv(false);
 	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
 	MusicGeneratorHandle generator = createMusicGenerator();
@@ -27,6 +30,8 @@ int main()
 	12384,  1016,  1877,   319, 15263,  3396,   302,  2667,  1807,  3388,
 	2649,  1173,    50,   967,  1621,   256,  1564,   653,  1701,   377
 	};
+
+	auto start = std::chrono::high_resolution_clock::now();
 
 	int32_t size = sizeof(input_ids) / sizeof(*input_ids);
 	InputHandle input = generator_generateInput(generator, input_ids, size);
@@ -42,6 +47,13 @@ int main()
 
 	input_decodeIDs(input, tok, &outTokens, &outTokensSize);
 
+    // Get the ending time
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // Calculate the duration
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+	std::cout << "duration : " << duration << std::endl;
 
 
 

@@ -1,6 +1,93 @@
 #include "musicGenerator.hpp"
 
 #include <sstream>
+
+
+void Batch::push(DataType inInputId, DataType inMask, DataType inPositionId)
+{
+    inputIds.push_back(inInputId);
+    attentionMask.push_back(inMask);
+    positionIds.push_back(inPositionId);
+}
+
+void Batch::push(DataType inInputId)
+{
+    DataType&& pos = positionIds.empty() ? 0 : (positionIds.back() + 1);  
+    push(inInputId, 1, std::move(pos));
+}
+
+void Batch::pop()
+{
+    inputIds.pop_back();
+    attentionMask.pop_back();
+    positionIds.pop_back();
+}
+
+void Batch::set(const std::vector<DataType>& inTokens, std::int32_t fromPos)
+{
+    inputIds = inTokens;
+    attentionMask.resize(inputIds.size(), 1);
+    positionIds.resize(inputIds.size());
+
+    for (std::int32_t i = fromPos; i < positionIds.size() + fromPos; i++)
+    {
+        positionIds[i] = i;
+    }
+}
+
+size_t Batch::size() const
+{
+    assert(inputIds.size() == attentionMask.size());
+    assert(inputIds.size() == positionIds.size());
+
+    return inputIds.size();
+}
+
+void RunInstance::updateInputTensors(const ModelInfo& info)
+{
+    // @TODO : support multiple batches
+    assert(batches.size() == 1);
+    std::vector<int64_t> input_shape = {int64_t(batches.size()), static_cast<int64_t>(batches.front()->size())};
+
+    auto pushTensor = [&](std::vector<DataType>& data, std::int32_t index)
+    {
+        inputDataTensors.push_back(Ort::Value::CreateTensor<DataType>(memory_info, data.data(), data.size() * sizeof(DataType), input_shape.data(), input_shape.size()));
+    };
+
+    inputDataTensors.clear();
+
+    // @TODO : support multiple batches
+    assert(batches.size() == 1);
+    pushTensor(batches.front()->inputIds, 0);
+    pushTensor(batches.front()->attentionMask, 1);
+    pushTensor(batches.front()->positionIds, 2);
+
+
+
+
+
+    // Update Past Tensors
+    int64_t past_shape[] = {
+        2, int64_t(batches.size()), info.num_attention_heads, 0, info.hidden_size / info.num_attention_heads
+    };
+    size_t nbElements = 1;
+    for (int64_t v : past_shape)
+    {
+        nbElements *= v;
+    }
+    std::vector<float> past;
+    for (size_t j = 0; j < nbElements; j++)
+        past.push_back(0.0f);
+
+    std::vector<int64_t> past_shape_v(std::begin(past_shape), std::end(past_shape));
+    for (int64_t i = 0; i < info.num_layer; i++)
+    {
+        inputDataTensors.push_back(Ort::Value::CreateTensor<float>(memory_info, past.data(), past.size() * sizeof(float), past_shape_v.data(), past_shape_v.size()));
+    }
+}
+
+
+
 std::wstring widen( const std::string& str )
 {
     std::wostringstream wstm ;
@@ -35,35 +122,41 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
         std::cout << "Error code: " << e.GetOrtErrorCode() << std::endl;    // Error code
         exit(1);
     }
-}
 
-void MusicGenerator::updateInputTensors(Input& input)
-{
-    int64_t nbBatches = 1;
-    std::vector<int64_t> input_shape = {nbBatches, static_cast<int64_t>(input.inputData.front().size())};
-    for (size_t i = 0; i < input.inputData.size(); i++)
+    // Load Config
+    // @TODO : load from config
+
+    modelInfo.num_attention_heads = 8;
+    modelInfo.hidden_size = 512;
+    modelInfo.num_layer = 8;
+
+    // Labels
+    modelInfo.inputIdLabel = "input_ids";
+    modelInfo.attentionMaskLabel = "attention_mask";
+    modelInfo.positionIdLabel = "position_ids";
+
+    for (int64_t i = 0; i < modelInfo.num_layer; i++)
     {
-        std::vector<Input::DataType>& inputData = input.inputData[i];
-        auto createTensor = [&]()
-        {
-            return Ort::Value::CreateTensor<Input::DataType>(input.memory_info, inputData.data(), inputData.size() * sizeof(Input::DataType), input_shape.data(), input_shape.size());
-        };
-        if (i < input.inputDataTensors.size())
-            input.inputDataTensors[i] = createTensor();
-        else
-            input.inputDataTensors.push_back(createTensor());
+        modelInfo.pastLabels.push_back(std::string("past_") + std::to_string(i));
     }
+    
+    std::vector<std::string> pastLabels;
 }
 
-
-void MusicGenerator::generate(Input& input)
+void MusicGenerator::generate(RunInstance& input)
 {
+    input.updateInputTensors(modelInfo);
+
     Ort::AllocatorWithDefaultOptions outputAllocator;
     Ort::AllocatedStringPtr outputStr = session->GetOutputNameAllocated(0, outputAllocator);
     const char* output_names[] = {outputStr.get()};
 
     std::vector<const char*> inputNamesCStr;
-    for (auto& inputName : input.inputNames)
+    inputNamesCStr.push_back(modelInfo.inputIdLabel.c_str());
+    inputNamesCStr.push_back(modelInfo.attentionMaskLabel.c_str());
+    inputNamesCStr.push_back(modelInfo.positionIdLabel.c_str());
+
+    for (auto& inputName : modelInfo.pastLabels)
     {
         inputNamesCStr.push_back(inputName.c_str());
     }
@@ -104,7 +197,7 @@ void MusicGenerator::generate(Input& input)
     // @TODO : optimize with custom search
     
     // Get the last token's logits for each sequence in the batch
-    std::vector<Input::DataType> next_tokens(batchSize);
+    std::vector<RunInstance::DataType> next_tokens(batchSize);
     for(int b = 0; b < batchSize; ++b) {
         // Pointer to the logits for the last token
         const float* last_logits = output_data + (b * shape[1] + (shape[1] - 1)) * vocab_size;
@@ -137,66 +230,23 @@ void MusicGenerator::generate(Input& input)
     //     }
     // }
 
-    // Append tokens to all_token_ids
-    for(Input::DataType b = 0; b < batchSize; ++b) {
-        // input.inputData[b].push_back(next_tokens[b]);
-
-        // @TODO : batch support
-        input.inputData[0].push_back(next_tokens[b]);
-        input.inputData[1].push_back(1);
-        input.inputData[2].push_back(Input::DataType(input.inputData[0].size()-1));
+    std::int32_t batchIndex = 0;
+    for (auto& batch : input.batches)
+    {
+        batch->push(next_tokens[batchIndex]);
+        batchIndex++;
     }
-
-
-    updateInputTensors(input);
+    // input.updateInputTensors(modelInfo);
 }
 
 
-Input MusicGenerator::generateInput(std::vector<Input::DataType>&& inputTokens)
+RunInstance MusicGenerator::generateInput(std::vector<RunInstance::DataType>&& inputTokens)
 {
-    Input input;
-    
-    input.inputNames.push_back("input_ids");
-    input.inputNames.push_back("attention_mask");
-    input.inputNames.push_back("position_ids");
+    RunInstance input;
 
-    input.inputData.emplace_back(std::move(inputTokens));
-    input.inputData.emplace_back();
-    input.inputData.emplace_back();
-
-    const std::vector<Input::DataType>& input_ids_v_rf = input.inputData[0];
-    std::vector<Input::DataType>& attention_mask_v_rf = input.inputData[1];
-    std::vector<Input::DataType>& position_ids_v_rf = input.inputData[2];
-
-    for (size_t i = 0; i < input_ids_v_rf.size(); i++)
-    {
-        attention_mask_v_rf.push_back(Input::DataType(1));
-        position_ids_v_rf.push_back(Input::DataType(i));
-    }
-
-    MusicGenerator::updateInputTensors(input);
-
-    // Update Past
-    int64_t past_shape[] = {
-        2, batchSize, num_attention_heads, 0, hidden_size / num_attention_heads
-    };
-    size_t nbElements = 1;
-    for (int64_t v : past_shape)
-    {
-        nbElements *= v;
-    }
-
-    std::vector<int64_t> past_shape_v(std::begin(past_shape), std::end(past_shape));
-    for (int64_t i = 0; i < num_layer; i++)
-    {
-        input.inputNames.push_back(std::string("past_") + std::to_string(i));
-        std::vector<float> past;
-        const std::vector<Input::DataType>& input_ids_v_rf2 = input.inputData[0];
-        for (size_t j = 0; j < nbElements; j++)
-            past.push_back(0.0f);
-
-        input.inputDataTensors.push_back(Ort::Value::CreateTensor<float>(input.memory_info, past.data(), past.size() * sizeof(float), past_shape_v.data(), past_shape_v.size()));
-    }
+    input.batches.emplace_back();
+    input.batches.front()->set(inputTokens);
+    input.updateInputTensors(modelInfo);
 
     return input;
 }

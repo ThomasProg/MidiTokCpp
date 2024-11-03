@@ -43,24 +43,10 @@ void generator_loadOnnxModel(MusicGeneratorHandle generator, EnvHandle env, cons
     generator->loadOnnxModel(*env, path);
 }
 
-InputHandle generator_generateInput(MusicGeneratorHandle generator, int32_t* inputIDs, int32_t size)
-{
-    std::vector<Input::DataType> in;
-    in.reserve(size);
-    for (int32_t i = 0; i < size; i++)
-    {
-        in.push_back(inputIDs[i]);
-    }
-    return new Input(generator->generateInput(std::move(in)));
-}
-void generator_generateInput_free(InputHandle input)
-{
-    delete input;
-}
 
-void generator_generateNextToken(MusicGeneratorHandle generator, InputHandle input)
+void generator_generateNextToken(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
 {
-    generator->generate(*input);
+    generator->generate(*runInstance);
 }
 
 RedirectorHandle createRedirector()
@@ -91,15 +77,6 @@ bool redirector_call(RedirectorHandle redirector, int32_t token)
     return redirector->tryCall(token);
 }
 
-void input_decodeIDs(InputHandle input, MidiTokenizerHandle tokenizer, std::int32_t** outputIDs, std::int32_t* outSize)
-{
-    tokenizer_decodeIDs(tokenizer, input->inputData[0].data(), std::int32_t(input->inputData[0].size()), outputIDs, outSize);
-}
-void input_decodeIDs_free(std::int32_t* outputIDs)
-{
-    delete[] outputIDs;
-}
-
 void tokenizer_decodeIDs(MidiTokenizerHandle tokenizer, std::int32_t* inputIDs, std::int32_t size, std::int32_t** outputIDs, std::int32_t* outSize)
 {
     std::vector<std::int32_t> inTokensVec;
@@ -123,6 +100,76 @@ void tokenizer_decodeIDs_free(std::int32_t* outputIDs)
 {
     delete[] outputIDs;
 }
+
+
+BatchHandle createBatch()
+{
+    return new Batch();
+}
+void destroyBatch(BatchHandle batch)
+{
+    delete batch; 
+}
+
+void batch_push(BatchHandle batch, DataType inInputId)
+{
+    batch->push(inInputId);
+}
+void batch_pop(BatchHandle batch)
+{
+    batch->pop();
+}
+
+void batch_set(BatchHandle batch, DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos)
+{
+    std::vector<DataType> inTokens(nbTokens);
+
+    for (std::int32_t i = 0; i < nbTokens; i++)
+    {
+        inTokens[i] = inputTokens[i];
+    }
+
+    batch->set(std::move(inTokens), fromPos);
+}
+
+std::int32_t batch_size(BatchHandle batch)
+{
+    return std::int32_t(batch->size());
+}
+
+void batch_getEncodedTokens(BatchHandle batch, DataType** outEncodedTokens, std::int32_t* outNbTokens)
+{
+    *outEncodedTokens =  batch->inputIds.data();
+    *outNbTokens = std::int32_t(batch->inputIds.size());
+}
+
+
+RunInstanceHandle createRunInstance()
+{
+    return new RunInstance();
+}
+void destroyRunInstance(RunInstanceHandle runInstance)
+{
+    delete runInstance; 
+}
+
+void runInstance_addBatch(RunInstanceHandle runInstance, BatchHandle batch)
+{
+    runInstance->batches.push_back(batch);
+}
+void runInstance_removeBatch(RunInstanceHandle runInstance, BatchHandle batch)
+{
+    auto& batches = runInstance->batches; 
+    batches.erase(std::find(batches.begin(), batches.end(), batch));
+}
+
+std::int32_t runInstance_nbBatches(RunInstanceHandle runInstance)
+{
+    return std::int32_t(runInstance->batches.size());
+}
+
+
+
 
 
 bool isBarNone(MidiTokenizerHandle tokenizer, std::int32_t token)

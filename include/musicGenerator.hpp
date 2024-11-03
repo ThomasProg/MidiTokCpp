@@ -2,46 +2,72 @@
 
 #include <map>
 #include <vector>
+#include <list>
 #include <onnxruntime_cxx_api.h>
 #include "midiTokenizer.hpp"
+#include "fwd.h"
 
-struct Input
+struct Batch
 {
+public:
     using DataType = std::int32_t;
 
-    std::vector<std::string> inputNames;
+    // Values
+    std::vector<DataType> inputIds; // encoded tokens
+    std::vector<DataType> attentionMask;
+    std::vector<DataType> positionIds;
 
-    // [type, value]
-    std::vector<std::vector<DataType>> inputData;
+public:
+    void push(DataType inInputId, DataType inMask, DataType inPositionId);
+    void push(DataType inInputId);
+    void pop();
 
+    void set(const std::vector<DataType>& inTokens, std::int32_t fromPos = 0);
+
+    size_t size() const;
+};
+
+struct RunInstance
+{
+    using DataType = Batch::DataType;
+
+    // Values
+    std::vector<Batch*> batches;
+
+    // Model Info & Tensors
     Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
     std::vector<Ort::Value> inputDataTensors;
+
+public:
+    void updateInputTensors(const struct ModelInfo& info);
+};
+
+struct ModelInfo
+{
+    // @TODO : load from config
+    int64_t num_attention_heads;
+    int64_t hidden_size;
+    int64_t num_layer;
+
+    // Labels
+    std::string inputIdLabel;
+    std::string attentionMaskLabel;
+    std::string positionIdLabel;
+    std::vector<std::string> pastLabels;
 };
 
 class MusicGenerator
 {
-public:
+private:
     std::unique_ptr<Ort::Session> session;
-
-
-
-    // @TODO : load from config
-    int64_t num_attention_heads = 8;
-    int64_t hidden_size = 512;
-    int64_t num_layer = 8;
-
-    int64_t batchSize = 1;
-
-
-
+public:
+    ModelInfo modelInfo;
 
 public:
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);
     void loadOnnxModel(const Ort::Env& env, const std::string& modelPath);
-    void generate(Input& input);
+    void generate(RunInstance& input);
 
-    Input generateInput(std::vector<Input::DataType>&& inputTokens);
-
-    static void updateInputTensors(Input& input);
+    RunInstance generateInput(std::vector<RunInstance::DataType>&& inputTokens);
 };
 

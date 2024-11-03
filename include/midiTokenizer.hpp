@@ -8,6 +8,7 @@
 #include <memory>
 #include <cassert>
 #include "json.hpp"
+#include "fwd.h"
 
 #include "tokenizers_cpp.h"
 

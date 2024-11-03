@@ -173,13 +173,13 @@ int main()
     generator.loadOnnxModel(*env, WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model3_past.onnx");
 
 
-    Input::DataType input_ids[] = {
+    RunInstance::DataType input_ids[] = {
         942,    65,  1579,  1842,   616,    46,  3032,  1507,   319,  1447,
         12384,  1016,  1877,   319, 15263,  3396,   302,  2667,  1807,  3388,
         2649,  1173,    50,   967,  1621,   256,  1564,   653,  1701,   377
     };
 
-    Input input = generator.generateInput(std::vector<Input::DataType>(std::begin(input_ids), std::end(input_ids)));
+    RunInstance input = generator.generateInput(std::vector<RunInstance::DataType>(std::begin(input_ids), std::end(input_ids)));
 
     for (int i = 0; i < 50; i++)
     {
@@ -187,7 +187,7 @@ int main()
     }
 
     std::cout << "Out Encoded Tokens" << std::endl;
-    for (auto& v : input.inputData[0])
+    for (auto& v : input.batches[0]->inputIds)
     {
         std::cout << v << '\t';
     }
@@ -222,7 +222,7 @@ int main()
 
 
     std::vector<int32_t> outTokens;
-    tokenizer->decodeIDs(input.inputData[0], outTokens);
+    tokenizer->decodeIDs(input.batches[0]->inputIds, outTokens);
 
     std::cout << "Out Decoded Tokens" << std::endl;
     for (auto& v : outTokens)

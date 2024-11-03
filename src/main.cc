@@ -15,8 +15,61 @@ void OnPitch(void* data, unsigned char pitch)
     std::cout << pitchInt << std::endl;
 }
 
+void test()
+{
+	EnvHandle env = createEnv(true);
+	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
+	MusicGeneratorHandle generator = createMusicGenerator();
+
+	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model3_past.onnx");
+
+	RunInstanceHandle runInstance = createRunInstance();
+	// runInstance_resetBatches(runInstance, 1);
+
+	// BatchHandle batch = runInstance_getBatch(runInstance, 0);
+
+	BatchHandle batch = createBatch();
+	runInstance_addBatch(runInstance, batch);
+
+	int32_t input_ids[] = {
+	942,    65,  1579,  1842,   616,    46,  3032,  1507,   319,  1447,
+	12384,  1016,  1877,   319, 15263,  3396,   302,  2667,  1807,  3388,
+	2649,  1173,    50,   967,  1621,   256,  1564,   653,  1701,   377
+	};
+	int32_t size = sizeof(input_ids) / sizeof(*input_ids);
+	batch_set(batch, input_ids, size, 0);
+
+	for (int i = 0; i < 10; i++)
+	{
+		generator_generateNextToken(generator, runInstance);
+	}
+
+	batch_pop(batch);
+	batch_pop(batch);
+	batch_pop(batch);
+
+	batch_push(batch, 942);
+	batch_push(batch, 65);
+	batch_push(batch, 1579);
+
+	for (int i = 0; i < 10; i++)
+	{
+		generator_generateNextToken(generator, runInstance);
+	}
+
+	int32_t* tokens;
+	int32_t tokensSize;
+	batch_getEncodedTokens(batch, &tokens, &tokensSize);
+
+
+}
+
+
+
 int main()
 {
+	// test();
+
 	std::cout << "Workspace path : " << WORKSPACE_PATH << std::endl;
 
 	EnvHandle env = createEnv(false);
@@ -34,18 +87,27 @@ int main()
 	auto start = std::chrono::high_resolution_clock::now();
 
 	int32_t size = sizeof(input_ids) / sizeof(*input_ids);
-	InputHandle input = generator_generateInput(generator, input_ids, size);
+	// InputHandle input = generator_generateInput(generator, input_ids, size);
+	RunInstanceHandle runInstance = createRunInstance();
+	BatchHandle batch = createBatch();
+	runInstance_addBatch(runInstance, batch);
+	batch_set(batch, input_ids, size, 0);
 
 
-	for (int i = 0; i < 10; i++)
-	{
-		generator_generateNextToken(generator, input);
-	}
+	// for (int i = 0; i < 10; i++)
+	// {
+	// 	generator_generateNextToken(generator, runInstance);
+	// }
+
+	DataType* encodedTokens = nullptr; 
+	std::int32_t nbTokens;
+	batch_getEncodedTokens(batch, &encodedTokens, &nbTokens);
 
 	int32_t* outTokens = nullptr;
 	int32_t outTokensSize = 0;
+	tokenizer_decodeIDs(tok, encodedTokens, nbTokens, &outTokens, &outTokensSize);
 
-	input_decodeIDs(input, tok, &outTokens, &outTokensSize);
+	// input_decodeIDs(input, tok, &outTokens, &outTokensSize);
 
     // Get the ending time
     auto end = std::chrono::high_resolution_clock::now();
@@ -67,13 +129,12 @@ int main()
 		bool found = redirector_call(redirector, outTokens[i]);
 	}
 
-	input_decodeIDs_free(outTokens);
+	tokenizer_decodeIDs_free(outTokens);
 
 	destroyRedirector(redirector);
 
-	generator_generateInput_free(input);
-
-
+	destroyBatch(batch);
+	destroyRunInstance(runInstance);
 
 	destroyMusicGenerator(generator);
 	destroyMidiTokenizer(tok);

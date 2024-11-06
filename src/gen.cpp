@@ -49,6 +49,14 @@ void generator_generateNextToken(MusicGeneratorHandle generator, RunInstanceHand
     generator->generate(*runInstance);
 }
 
+void generator_setConfig(MusicGeneratorHandle generator, int64_t num_attention_heads, int64_t hidden_size, int64_t num_layer)
+{
+    ModelInfo& info = generator->modelInfo;
+    info.num_layer = num_layer;
+    info.num_attention_heads = num_attention_heads;
+    info.hidden_size = hidden_size;
+}
+
 RedirectorHandle createRedirector()
 {
     return new Redirector();
@@ -77,8 +85,13 @@ bool redirector_call(RedirectorHandle redirector, int32_t token)
     return redirector->tryCall(token);
 }
 
-void tokenizer_decodeIDs(MidiTokenizerHandle tokenizer, std::int32_t* inputIDs, std::int32_t size, std::int32_t** outputIDs, std::int32_t* outSize)
+void tokenizer_decodeIDs(MidiTokenizerHandle tokenizer, const std::int32_t* inputIDs, std::int32_t size, std::int32_t** outputIDs, std::int32_t* outSize)
 {
+    if (size == 0)
+    {
+        return;
+    }
+
     std::vector<std::int32_t> inTokensVec;
     inTokensVec.reserve(size);
     for (std::int32_t i = 0; i < size; i++)

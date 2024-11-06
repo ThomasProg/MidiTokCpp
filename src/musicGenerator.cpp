@@ -29,9 +29,9 @@ void Batch::set(const std::vector<DataType>& inTokens, std::int32_t fromPos)
     attentionMask.resize(inputIds.size(), 1);
     positionIds.resize(inputIds.size());
 
-    for (std::int32_t i = fromPos; i < positionIds.size() + fromPos; i++)
+    for (std::int32_t i = 0; i < positionIds.size(); i++)
     {
-        positionIds[i] = i;
+        positionIds[i] = (i + fromPos) ; // @TODO : currently using circular encoding ; use relative encoding instead?
     }
 }
 
@@ -126,9 +126,13 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
     // Load Config
     // @TODO : load from config
 
-    modelInfo.num_attention_heads = 8;
-    modelInfo.hidden_size = 512;
-    modelInfo.num_layer = 8;
+    // modelInfo.num_attention_heads = 8;
+    // modelInfo.hidden_size = 512;
+    // modelInfo.num_layer = 8;
+
+    modelInfo.num_attention_heads = 4;
+    modelInfo.hidden_size = 256;
+    modelInfo.num_layer = 6;
 
     // Labels
     modelInfo.inputIdLabel = "input_ids";

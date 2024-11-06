@@ -170,7 +170,7 @@ int main()
     std::unique_ptr<Ort::Env> env = MusicGenerator::createOnnxEnv();
 
     MusicGenerator generator;
-    generator.loadOnnxModel(*env, WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model3_past.onnx");
+    generator.loadOnnxModel(*env, WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model_past.onnx");
 
 
     RunInstance::DataType input_ids[] = {

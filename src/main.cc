@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <chrono>
+#include <vector>
 
 #include "gen.h"
 
@@ -76,7 +77,7 @@ int main()
 	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
 	MusicGeneratorHandle generator = createMusicGenerator();
 
-	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model3_past.onnx");
+	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model_past.onnx");
 
 	int32_t input_ids[] = {
 	942,    65,  1579,  1842,   616,    46,  3032,  1507,   319,  1447,
@@ -94,18 +95,32 @@ int main()
 	batch_set(batch, input_ids, size, 0);
 
 
-	// for (int i = 0; i < 10; i++)
-	// {
-	// 	generator_generateNextToken(generator, runInstance);
-	// }
+	for (int i = 0; i < 100; i++)
+	{
+		generator_generateNextToken(generator, runInstance);
+	}
 
 	DataType* encodedTokens = nullptr; 
 	std::int32_t nbTokens;
 	batch_getEncodedTokens(batch, &encodedTokens, &nbTokens);
 
+	std::vector<int32_t> encodedTokensVec;
+	for (int i = 0; i < nbTokens; i++)
+	{
+		encodedTokensVec.push_back(encodedTokens[i]);
+	}
+
+
 	int32_t* outTokens = nullptr;
 	int32_t outTokensSize = 0;
 	tokenizer_decodeIDs(tok, encodedTokens, nbTokens, &outTokens, &outTokensSize);
+
+	std::vector<int32_t> outTokensVec;
+	for (int i = 0; i < outTokensSize; i++)
+	{
+		outTokensVec.push_back(outTokens[i]);
+	}
+
 
 	// input_decodeIDs(input, tok, &outTokens, &outTokensSize);
 

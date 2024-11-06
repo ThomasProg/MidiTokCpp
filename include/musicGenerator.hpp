@@ -45,9 +45,9 @@ public:
 struct ModelInfo
 {
     // @TODO : load from config
-    int64_t num_attention_heads;
-    int64_t hidden_size;
-    int64_t num_layer;
+    int64_t num_attention_heads; // n_head
+    int64_t hidden_size; // n_embd
+    int64_t num_layer; // n_layer
 
     // Labels
     std::string inputIdLabel;

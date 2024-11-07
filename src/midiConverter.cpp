@@ -9,14 +9,15 @@ void MIDIConverter::reset()
     currentBar = -1;
 }
 
-void MIDIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t index, void* data)
+bool MIDIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t& index, void* data)
 {
     if (index >= nbTokens)
-        return;
+        return false;
 
     MidiTokenizer& tokenizer = *tokenizerHandle;
 
     int32_t token = tokens[index];
+
     if (tokenizer.isBarNone(token))
     {
         currentBar += 1;
@@ -25,6 +26,8 @@ void MIDIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::i
             currentTick = tickAtCurrentBar + ticksPerBar;
         }
         tickAtCurrentBar = currentTick;
+        index++;
+        return true;
     }
     else if (tokenizer.isPosition(token))
     {
@@ -33,6 +36,8 @@ void MIDIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::i
             currentBar = 0;
         }
         currentTick = tickAtCurrentBar + tokenizer.getPositionValue(token) * ticksPerPos;
+        index++;
+        return true;
     }
     else if (tokenizer.isPitch(token)/* || tokenizer.isPitchDrum(token) || tokenizer.isPitchIntervalTime(token) || tokenizer.isPitchIntervalChord(token)*/)
     {
@@ -58,15 +63,19 @@ void MIDIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::i
                     newNote.duration = tokenizer.getDurationValue(durationToken);
                     newNote.velocity = tokenizer.getVelocityValue(velocityToken);
                     onNote(data, newNote);
+                    index += 3;
+                    return true;
                 }
             } 
         }
     }
+
+    return false;
 }
 
-void MIDIConverter::processToken(const std::vector<int32_t>& tokens, std::int32_t index, void* data)
+bool MIDIConverter::processToken(const std::vector<int32_t>& tokens, std::int32_t& index, void* data)
 {
-    processToken(tokens.data(), std::int32_t(tokens.size()), index, data);
+    return processToken(tokens.data(), std::int32_t(tokens.size()), index, data);
 }
 
 void tryPlay(const std::vector<int32_t>& tokens, std::int32_t& unplayedTokenIndex)

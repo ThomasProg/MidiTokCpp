@@ -23,7 +23,7 @@ public:
     void (*onNote)(void* data, const Note&);
 
     void reset();
-    void processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t index, void* data = nullptr);
-    void processToken(const std::vector<int32_t>& tokens, std::int32_t index, void* data = nullptr);
+    bool processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t& index, void* data = nullptr);
+    bool processToken(const std::vector<int32_t>& tokens, std::int32_t& index, void* data = nullptr);
 };
 

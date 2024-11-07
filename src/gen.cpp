@@ -222,9 +222,10 @@ void converterSetOnNote(MidiConverterHandle converter, void (*onNote)(void* data
 {
     converter->onNote = onNote;
 }
-void converterProcessToken(MidiConverterHandle converter, const int32_t* tokens, int32_t nbTokens, std::int32_t index, void* data)
+bool converterProcessToken(MidiConverterHandle converter, const int32_t* tokens, int32_t nbTokens, std::int32_t* index, void* data)
 {
-    converter->processToken(tokens, nbTokens, index, data);
+    assert(index != nullptr);
+    return converter->processToken(tokens, nbTokens, *index, data);
 }
 
 void converterSetTokenizer(MidiConverterHandle converter, MidiTokenizerHandle tokenizer)

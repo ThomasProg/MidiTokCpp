@@ -34,7 +34,6 @@ struct RunInstance
     // Values
     std::vector<Batch*> batches;
 
-    std::int32_t nbCache = 6;
     std::vector<Ort::Value> cachedValues; // "present" / "past" values
 
     // Model Info & Tensors
@@ -66,6 +65,7 @@ private:
     std::unique_ptr<Ort::Session> session;
 public:
     ModelInfo modelInfo;
+    bool useIOBindings = true;
 
 public:
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);

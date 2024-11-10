@@ -189,9 +189,9 @@ void MusicGenerator::generate(RunInstance& input)
 
     std::vector<const char*> outputNames;
     std::vector<Ort::AllocatorWithDefaultOptions> outputAllocators;
-    outputAllocators.resize(1 + input.nbCache);
+    outputAllocators.resize(1 + modelInfo.num_layer);
     std::vector<Ort::AllocatedStringPtr> outputAllocNames;
-    for (std::int32_t i = 0; i < 1 + input.nbCache; i ++)
+    for (std::int32_t i = 0; i < 1 + modelInfo.num_layer; i ++)
     {
         outputAllocNames.emplace_back(session->GetOutputNameAllocated(i, outputAllocators[i]));
         outputNames.push_back(outputAllocNames.back().get());
@@ -210,7 +210,21 @@ void MusicGenerator::generate(RunInstance& input)
     std::vector<Ort::Value> output_tensors;
     try 
     {
-        output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesCStr.data(), input.inputDataTensors.data(), input.inputDataTensors.size(), outputNames.data(), outputNames.size());
+        if (useIOBindings)
+        {
+            Ort::IoBinding io_binding(*session);
+
+            // Initial binding, only done once
+            Ort::Value input_tensor = Ort::Value::CreateTensor<int64_t>(input.memory_info, input_ids.data(), input_ids.size(), input_shape.data(), input_shape.size());;
+            Ort::Value output_tensor = Ort::Value::CreateTensor<int64_t>(input.memory_info, input_ids.data(), input_ids.size(), input_shape.data(), input_shape.size());;
+            io_binding.BindInput("input_ids", input_tensor);
+            io_binding.BindOutput("logits", output_tensor);
+            session->Run(Ort::RunOptions{nullptr}, io_binding);
+        }
+        else 
+        {
+            output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesCStr.data(), input.inputDataTensors.data(), input.inputDataTensors.size(), outputNames.data(), outputNames.size());
+        }
     }
     catch(const Ort::Exception& e)
     {
@@ -220,7 +234,7 @@ void MusicGenerator::generate(RunInstance& input)
     }
 
     input.cachedValues.clear();
-    for (std::int32_t i = 1; i < 1+input.nbCache; i++)
+    for (std::int32_t i = 1; i < 1+modelInfo.num_layer; i++)
     {
         // Ort::TensorTypeAndShapeInfo info = output_tensors[i].GetTensorTypeAndShapeInfo();
         // std::vector<int64_t> sh = info.GetShape();

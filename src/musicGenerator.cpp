@@ -212,14 +212,14 @@ void MusicGenerator::generate(RunInstance& input)
     {
         if (useIOBindings)
         {
-            Ort::IoBinding io_binding(*session);
+            // Ort::IoBinding io_binding(*session);
 
-            // Initial binding, only done once
-            Ort::Value input_tensor = Ort::Value::CreateTensor<int64_t>(input.memory_info, input_ids.data(), input_ids.size(), input_shape.data(), input_shape.size());;
-            Ort::Value output_tensor = Ort::Value::CreateTensor<int64_t>(input.memory_info, input_ids.data(), input_ids.size(), input_shape.data(), input_shape.size());;
-            io_binding.BindInput("input_ids", input_tensor);
-            io_binding.BindOutput("logits", output_tensor);
-            session->Run(Ort::RunOptions{nullptr}, io_binding);
+            // // Initial binding, only done once
+            // Ort::Value input_tensor = Ort::Value::CreateTensor<int64_t>(input.memory_info, input_ids.data(), input_ids.size(), input_shape.data(), input_shape.size());;
+            // Ort::Value output_tensor = Ort::Value::CreateTensor<int64_t>(input.memory_info, input_ids.data(), input_ids.size(), input_shape.data(), input_shape.size());;
+            // io_binding.BindInput("input_ids", input_tensor);
+            // io_binding.BindOutput("logits", output_tensor);
+            // session->Run(Ort::RunOptions{nullptr}, io_binding);
         }
         else 
         {

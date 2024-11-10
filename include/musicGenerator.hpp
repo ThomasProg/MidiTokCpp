@@ -65,7 +65,7 @@ private:
     std::unique_ptr<Ort::Session> session;
 public:
     ModelInfo modelInfo;
-    bool useIOBindings = true;
+    bool useIOBindings = false;
 
 public:
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);

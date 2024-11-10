@@ -45,44 +45,79 @@ size_t Batch::size() const
 
 void RunInstance::updateInputTensors(const ModelInfo& info)
 {
+    bool usePast = !cachedValues.empty();
+
     // @TODO : support multiple batches
     assert(batches.size() == 1);
-    std::vector<int64_t> input_shape = {int64_t(batches.size()), static_cast<int64_t>(batches.front()->size())};
+
+    auto pushTensorSingle = [&](DataType& data, std::int32_t index)
+    {
+        std::vector<int64_t> input_shape = {int64_t(batches.size()), 1};
+        inputDataTensors.push_back(Ort::Value::CreateTensor<DataType>(memory_info, &data, sizeof(DataType), input_shape.data(), input_shape.size()));
+    };
 
     auto pushTensor = [&](std::vector<DataType>& data, std::int32_t index)
     {
+        std::vector<int64_t> input_shape = {int64_t(batches.size()), static_cast<int64_t>(batches.front()->size())};
         inputDataTensors.push_back(Ort::Value::CreateTensor<DataType>(memory_info, data.data(), data.size() * sizeof(DataType), input_shape.data(), input_shape.size()));
     };
 
     inputDataTensors.clear();
 
-    // @TODO : support multiple batches
-    assert(batches.size() == 1);
-    pushTensor(batches.front()->inputIds, 0);
-    pushTensor(batches.front()->attentionMask, 1);
-    pushTensor(batches.front()->positionIds, 2);
-
-
-
-
-
-    // Update Past Tensors
-    int64_t past_shape[] = {
-        2, int64_t(batches.size()), info.num_attention_heads, 0, info.hidden_size / info.num_attention_heads
-    };
-    size_t nbElements = 1;
-    for (int64_t v : past_shape)
+    if (usePast)
     {
-        nbElements *= v;
+        // @TODO : support multiple batches
+        assert(batches.size() == 1);
+        pushTensorSingle(batches.front()->inputIds.back(), 0);
+        pushTensor(batches.front()->attentionMask, 1);
+        pushTensorSingle(batches.front()->positionIds.back(), 2);
     }
-    std::vector<float> past;
-    for (size_t j = 0; j < nbElements; j++)
-        past.push_back(0.0f);
-
-    std::vector<int64_t> past_shape_v(std::begin(past_shape), std::end(past_shape));
-    for (int64_t i = 0; i < info.num_layer; i++)
+    else 
     {
-        inputDataTensors.push_back(Ort::Value::CreateTensor<float>(memory_info, past.data(), past.size() * sizeof(float), past_shape_v.data(), past_shape_v.size()));
+        // @TODO : support multiple batches
+        assert(batches.size() == 1);
+        pushTensor(batches.front()->inputIds, 0);
+        pushTensor(batches.front()->attentionMask, 1);
+        pushTensor(batches.front()->positionIds, 2);
+    }
+
+
+    if (!usePast)
+    {
+        // Update Past Tensors
+        const std::array<int64_t, 5> past_shape = {
+            2, int64_t(batches.size()), info.num_attention_heads, 0, info.hidden_size / info.num_attention_heads
+        };
+
+        for (int64_t i = 0; i < info.num_layer; i++)
+        {
+            Ort::Value past_tensor = Ort::Value::CreateTensor<float>(cacheAllocator, past_shape.data(), past_shape.size());
+            inputDataTensors.push_back(std::move(past_tensor));
+        }
+
+
+        // size_t nbElements = 1;
+        // for (int64_t v : past_shape)
+        // {
+        //     nbElements *= v;
+        // }
+        // std::vector<float> past;
+        // for (size_t j = 0; j < nbElements; j++)
+        //     past.push_back(0.0f);
+
+        // std::vector<int64_t> past_shape_v(std::begin(past_shape), std::end(past_shape));
+        // for (int64_t i = 0; i < info.num_layer; i++)
+        // {
+        //     inputDataTensors.push_back(Ort::Value::CreateTensor<float>(memory_info, past.data(), past.size() * sizeof(float), past_shape_v.data(), past_shape_v.size()));
+        // }
+    }
+    else
+    {
+        for (size_t i = 0; i < cachedValues.size(); i++)
+        {
+            inputDataTensors.emplace_back(std::move(cachedValues[i]));
+        }
+        cachedValues.clear();
     }
 }
 
@@ -109,6 +144,7 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
 {
     // Create session options and enable optimization
     Ort::SessionOptions session_options;
+    session_options.SetIntraOpNumThreads(1);
     session_options.SetIntraOpNumThreads(1);
     session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
 
@@ -151,9 +187,15 @@ void MusicGenerator::generate(RunInstance& input)
 {
     input.updateInputTensors(modelInfo);
 
-    Ort::AllocatorWithDefaultOptions outputAllocator;
-    Ort::AllocatedStringPtr outputStr = session->GetOutputNameAllocated(0, outputAllocator);
-    const char* output_names[] = {outputStr.get()};
+    std::vector<const char*> outputNames;
+    std::vector<Ort::AllocatorWithDefaultOptions> outputAllocators;
+    outputAllocators.resize(1 + input.nbCache);
+    std::vector<Ort::AllocatedStringPtr> outputAllocNames;
+    for (std::int32_t i = 0; i < 1 + input.nbCache; i ++)
+    {
+        outputAllocNames.emplace_back(session->GetOutputNameAllocated(i, outputAllocators[i]));
+        outputNames.push_back(outputAllocNames.back().get());
+    }
 
     std::vector<const char*> inputNamesCStr;
     inputNamesCStr.push_back(modelInfo.inputIdLabel.c_str());
@@ -168,7 +210,7 @@ void MusicGenerator::generate(RunInstance& input)
     std::vector<Ort::Value> output_tensors;
     try 
     {
-        output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesCStr.data(), input.inputDataTensors.data(), input.inputDataTensors.size(), output_names, 1);
+        output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesCStr.data(), input.inputDataTensors.data(), input.inputDataTensors.size(), outputNames.data(), outputNames.size());
     }
     catch(const Ort::Exception& e)
     {
@@ -177,8 +219,21 @@ void MusicGenerator::generate(RunInstance& input)
         exit(1);
     }
 
+    input.cachedValues.clear();
+    for (std::int32_t i = 1; i < 1+input.nbCache; i++)
+    {
+        // Ort::TensorTypeAndShapeInfo info = output_tensors[i].GetTensorTypeAndShapeInfo();
+        // std::vector<int64_t> sh = info.GetShape();
+
+        // std::cout << "Output Shape " << i << ":\n";
+        // for (int j = 0; j < sh.size(); j++)
+        //     std::cout << " - " << sh[j] << '\n';
+
+        input.cachedValues.emplace_back(std::move(output_tensors[i]));
+    }
+
     // @TODO for each batch
-    const Ort::Value& output_tensor = output_tensors[0];
+    const Ort::Value& output_tensor = output_tensors[0]; // logits
     const float* output_data = output_tensor.GetTensorData<float>();
     Ort::TensorTypeAndShapeInfo tensorInfo = output_tensor.GetTensorTypeAndShapeInfo();
     std::vector<int64_t> shape = tensorInfo.GetShape();

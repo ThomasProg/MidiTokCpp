@@ -34,8 +34,12 @@ struct RunInstance
     // Values
     std::vector<Batch*> batches;
 
+    std::int32_t nbCache = 6;
+    std::vector<Ort::Value> cachedValues; // "present" / "past" values
+
     // Model Info & Tensors
     Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    Ort::AllocatorWithDefaultOptions cacheAllocator;
     std::vector<Ort::Value> inputDataTensors;
 
 public:

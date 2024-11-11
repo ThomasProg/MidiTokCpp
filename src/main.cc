@@ -88,32 +88,35 @@ int main()
 	auto start = std::chrono::high_resolution_clock::now();
 
 	int32_t size = sizeof(input_ids) / sizeof(*input_ids);
-	// InputHandle input = generator_generateInput(generator, input_ids, size);
-	RunInstanceHandle runInstance = createRunInstance();
+	// RunInstanceHandle runInstance = createRunInstance();
+	RunInstanceHandle runInstance = generator_createRunInstance(generator);
 	BatchHandle batch = createBatch();
 	runInstance_addBatch(runInstance, batch);
 	batch_set(batch, input_ids, size, 0);
 
-
-	for (int i = 0; i < 150; i++)
+	std::vector<int32_t> encodedTokensVec;
+	for (int i = 0; i < 1000; i++)
 	{
 		generator_generateNextToken(generator, runInstance);
+
+		int32_t newToken = batch_getLastGeneratedToken(batch);
+		encodedTokensVec.push_back(newToken);
 	}
 
-	DataType* encodedTokens = nullptr; 
-	std::int32_t nbTokens;
-	batch_getEncodedTokens(batch, &encodedTokens, &nbTokens);
+	// DataType* encodedTokens = nullptr; 
+	// std::int32_t nbTokens;
+	// batch_getEncodedTokens(batch, &encodedTokens, &nbTokens);
 
-	std::vector<int32_t> encodedTokensVec;
-	for (int i = 0; i < nbTokens; i++)
-	{
-		encodedTokensVec.push_back(encodedTokens[i]);
-	}
+	// std::vector<int32_t> encodedTokensVec;
+	// for (int i = 0; i < nbTokens; i++)
+	// {
+	// 	encodedTokensVec.push_back(encodedTokens[i]);
+	// }
 
 
 	int32_t* outTokens = nullptr;
 	int32_t outTokensSize = 0;
-	tokenizer_decodeIDs(tok, encodedTokens, nbTokens, &outTokens, &outTokensSize);
+	tokenizer_decodeIDs(tok, encodedTokensVec.data(), encodedTokensVec.size(), &outTokens, &outTokensSize);
 
 	std::vector<int32_t> outTokensVec;
 	for (int i = 0; i < outTokensSize; i++)

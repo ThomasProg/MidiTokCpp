@@ -57,6 +57,11 @@ void generator_setConfig(MusicGeneratorHandle generator, int64_t num_attention_h
     info.hidden_size = hidden_size;
 }
 
+RunInstance* generator_createRunInstance(MusicGeneratorHandle generator)
+{
+    return generator->createRunInstance();
+}
+
 RedirectorHandle createRedirector()
 {
     return new Redirector();
@@ -122,6 +127,11 @@ BatchHandle createBatch()
 void destroyBatch(BatchHandle batch)
 {
     delete batch; 
+}
+
+std::int32_t batch_getLastGeneratedToken(BatchHandle batch)
+{
+    return batch->lastGeneratedToken;
 }
 
 void batch_push(BatchHandle batch, DataType inInputId)

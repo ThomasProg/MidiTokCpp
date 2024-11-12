@@ -46,85 +46,6 @@ size_t Batch::size() const
     return inputIds.size();
 }
 
-// void RunInstance::updateInputTensors(const ModelInfo& info)
-// {
-//     bool usePast = !presentTensors.empty();
-
-//     // @TODO : support multiple batches
-//     assert(batches.size() == 1);
-
-//     auto pushTensorSingle = [&](DataType& data, std::int32_t index)
-//     {
-//         std::vector<int64_t> input_shape = {int64_t(batches.size()), 1};
-//         inputDataTensors.push_back(Ort::Value::CreateTensor<DataType>(memory_info, &data, sizeof(DataType), input_shape.data(), input_shape.size()));
-//     };
-
-//     auto pushTensor = [&](std::vector<DataType>& data, std::int32_t index)
-//     {
-//         std::vector<int64_t> input_shape = {int64_t(batches.size()), static_cast<int64_t>(batches.front()->size())};
-//         inputDataTensors.push_back(Ort::Value::CreateTensor<DataType>(memory_info, data.data(), data.size() * sizeof(DataType), input_shape.data(), input_shape.size()));
-//     };
-
-//     inputDataTensors.clear();
-
-//     if (usePast)
-//     {
-//         // @TODO : support multiple batches
-//         assert(batches.size() == 1);
-//         pushTensorSingle(batches.front()->inputIds.back(), 0);
-//         pushTensor(batches.front()->attentionMask, 1);
-//         pushTensorSingle(batches.front()->positionIds.back(), 2);
-//     }
-//     else 
-//     {
-//         // @TODO : support multiple batches
-//         assert(batches.size() == 1);
-//         pushTensor(batches.front()->inputIds, 0);
-//         pushTensor(batches.front()->attentionMask, 1);
-//         pushTensor(batches.front()->positionIds, 2);
-//     }
-
-
-//     if (!usePast)
-//     {
-//         // Update Past Tensors
-//         const std::array<int64_t, 5> past_shape = {
-//             2, int64_t(batches.size()), info.num_attention_heads, 0, info.hidden_size / info.num_attention_heads
-//         };
-
-//         for (int64_t i = 0; i < info.num_layer; i++)
-//         {
-//             Ort::Value past_tensor = Ort::Value::CreateTensor<float>(cacheAllocator, past_shape.data(), past_shape.size());
-//             inputDataTensors.push_back(std::move(past_tensor));
-//         }
-
-
-//         // size_t nbElements = 1;
-//         // for (int64_t v : past_shape)
-//         // {
-//         //     nbElements *= v;
-//         // }
-//         // std::vector<float> past;
-//         // for (size_t j = 0; j < nbElements; j++)
-//         //     past.push_back(0.0f);
-
-//         // std::vector<int64_t> past_shape_v(std::begin(past_shape), std::end(past_shape));
-//         // for (int64_t i = 0; i < info.num_layer; i++)
-//         // {
-//         //     inputDataTensors.push_back(Ort::Value::CreateTensor<float>(memory_info, past.data(), past.size() * sizeof(float), past_shape_v.data(), past_shape_v.size()));
-//         // }
-//     }
-//     else
-//     {
-//         for (size_t i = 0; i < cachedValues.size(); i++)
-//         {
-//             inputDataTensors.emplace_back(std::move(cachedValues[i]));
-//         }
-//         cachedValues.clear();
-//     }
-// }
-
-
 
 std::wstring widen( const std::string& str )
 {
@@ -198,7 +119,7 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
 
 void RunInstance::createInputIdsTensor(const struct ModelInfo& info)
 {
-    std::array<std::int64_t, 2> inputShape = {std::int64_t(batches.size()), static_cast<std::int64_t>(batches.front()->size())};
+    std::array<std::int64_t, 2> inputShape = {std::int64_t(getNbBatches()), static_cast<std::int64_t>(batches.front()->size())};
     inputIdsTensor = Ort::Value::CreateTensor<DataType>(defaultAllocator, inputShape.data(), inputShape.size());
 
 #ifdef PRINT_TENSOR_SHAPE
@@ -207,7 +128,7 @@ void RunInstance::createInputIdsTensor(const struct ModelInfo& info)
 }
 void RunInstance::createInputIdsTensorCache(const struct ModelInfo& info)
 {
-    std::array<std::int64_t, 2> inputShape = {std::int64_t(batches.size()), 1};
+    std::array<std::int64_t, 2> inputShape = {std::int64_t(getNbBatches()), 1};
     inputIdsTensor = Ort::Value::CreateTensor<DataType>(defaultAllocator, inputShape.data(), inputShape.size());
 
 #ifdef PRINT_TENSOR_SHAPE
@@ -216,7 +137,7 @@ void RunInstance::createInputIdsTensorCache(const struct ModelInfo& info)
 }
 void RunInstance::createPositionIdsTensor(const struct ModelInfo& info)
 {
-    std::array<std::int64_t, 2> inputShape = {std::int64_t(batches.size()), static_cast<std::int64_t>(batches.front()->size())};
+    std::array<std::int64_t, 2> inputShape = {std::int64_t(getNbBatches()), static_cast<std::int64_t>(batches.front()->size())};
     positionIdsTensor = Ort::Value::CreateTensor<DataType>(defaultAllocator, inputShape.data(), inputShape.size());
 
 #ifdef PRINT_TENSOR_SHAPE
@@ -225,7 +146,7 @@ void RunInstance::createPositionIdsTensor(const struct ModelInfo& info)
 }
 void RunInstance::createPositionIdsTensorCache(const struct ModelInfo& info)
 {
-    std::array<std::int64_t, 2> inputShape = {std::int64_t(batches.size()), 1};
+    std::array<std::int64_t, 2> inputShape = {std::int64_t(getNbBatches()), 1};
     positionIdsTensor = Ort::Value::CreateTensor<DataType>(defaultAllocator, inputShape.data(), inputShape.size());
 
 #ifdef PRINT_TENSOR_SHAPE
@@ -234,7 +155,7 @@ void RunInstance::createPositionIdsTensorCache(const struct ModelInfo& info)
 }
 void RunInstance::createAttentionMaskTensor(const struct ModelInfo& info, std::int64_t seqLength)
 {
-    std::array<std::int64_t, 2> inputShape = {std::int64_t(batches.size()), seqLength};
+    std::array<std::int64_t, 2> inputShape = {std::int64_t(getNbBatches()), seqLength};
     attentionMaskTensor = Ort::Value::CreateTensor<DataType>(defaultAllocator, inputShape.data(), inputShape.size());
 
 #ifdef PRINT_TENSOR_SHAPE
@@ -243,7 +164,7 @@ void RunInstance::createAttentionMaskTensor(const struct ModelInfo& info, std::i
 }
 void RunInstance::createPresentTensors(const struct ModelInfo& info, std::int64_t seqLength)
 {
-    const std::array<std::int64_t, 5> emptyPresentShape = {2, std::int64_t(batches.size()), info.num_attention_heads, seqLength, info.hidden_size / info.num_attention_heads};
+    const std::array<std::int64_t, 5> emptyPresentShape = {2, std::int64_t(getNbBatches()), info.num_attention_heads, seqLength, info.hidden_size / info.num_attention_heads};
     presentTensors.clear();
     presentTensors.reserve(info.num_layer);
     for (std::int32_t i = 0; i < info.num_layer; i++)
@@ -259,23 +180,9 @@ void RunInstance::createPresentTensors(const struct ModelInfo& info, std::int64_
 #endif
 }
 
-// void RunInstance::createInputTensors(const struct ModelInfo& info, std::int64_t seqLength)
-// {
-//     std::array<std::int64_t, 2> inputShape = {std::int64_t(batches.size()), static_cast<std::int64_t>(batches.front()->size())};
-//     inputIdsTensor = Ort::Value::CreateTensor<DataType>(defaultAllocator, inputShape.data(), inputShape.size());
-//     positionIdsTensor = Ort::Value::CreateTensor<DataType>(defaultAllocator, inputShape.data(), inputShape.size());
-//     attentionMaskTensor = Ort::Value::CreateTensor<DataType>(defaultAllocator, inputShape.data(), inputShape.size());
-
-//     const std::array<std::int64_t, 5> emptyPresentShape = {2, std::int64_t(batches.size()), info.num_attention_heads, 0, info.hidden_size / info.num_attention_heads};
-//     for (std::int32_t i = 0; i < info.num_layer; i++)
-//     {
-//         presentTensors[i] = Ort::Value::CreateTensor<DataType>(defaultAllocator, emptyPresentShape.data(), emptyPresentShape.size());
-//     }
-// }
-
 void RunInstance::createLogitsTensor(const struct ModelInfo& info, std::int64_t seqLength)
 {
-    const std::array<std::int64_t, 3> inputShape = {std::int64_t(batches.size()), seqLength, info.vocab_size};
+    const std::array<std::int64_t, 3> inputShape = {std::int64_t(getNbBatches()), seqLength, info.vocab_size};
     logitsTensor = Ort::Value::CreateTensor<float>(defaultAllocator, inputShape.data(), inputShape.size());
 
 #ifdef PRINT_TENSOR_SHAPE
@@ -285,7 +192,7 @@ void RunInstance::createLogitsTensor(const struct ModelInfo& info, std::int64_t 
 
 void RunInstance::createPastTensors(const struct ModelInfo& info, std::int64_t seqLength)
 {
-    const std::array<std::int64_t, 5> pastShape = {2, std::int64_t(batches.size()), info.num_attention_heads, seqLength, info.hidden_size / info.num_attention_heads};
+    const std::array<std::int64_t, 5> pastShape = {2, std::int64_t(getNbBatches()), info.num_attention_heads, seqLength, info.hidden_size / info.num_attention_heads};
     pastTensors.clear();
     pastTensors.reserve(info.num_layer);
     for (std::int32_t i = 0; i < info.num_layer; i++)
@@ -307,7 +214,7 @@ void RunInstance::updateInputIdsTensor(const struct ModelInfo& info)
     size_t i = 0;
     for (Batch* batch : batches)
     {
-        for (std::int64_t j = 0; j < batch->inputIds.size(); j++)
+        for (std::size_t j = 0; j < batch->inputIds.size(); j++)
         {
             data[i] = batch->inputIds[j];
             i++;
@@ -321,7 +228,7 @@ void RunInstance::updatePositionIdsTensor(const struct ModelInfo& info)
     size_t i = 0;
     for (Batch* batch : batches)
     {
-        for (std::int64_t j = 0; j < batch->positionIds.size(); j++)
+        for (std::size_t j = 0; j < batch->positionIds.size(); j++)
         {
             data[i] = batch->positionIds[j];
             i++;
@@ -335,7 +242,7 @@ void RunInstance::updateAttentionMaskTensor(const struct ModelInfo& info)
     size_t i = 0;
     for (Batch* batch : batches)
     {
-        for (std::int64_t j = 0; j < batch->attentionMask.size(); j++)
+        for (std::size_t j = 0; j < batch->attentionMask.size(); j++)
         {
             data[i] = batch->attentionMask[j];
             i++;
@@ -371,18 +278,6 @@ void RunInstance::updateInputIdsTensorCache(const ModelInfo& info, const std::ve
     }
 }
 
-// void RunInstance::createOutputTensors(const struct ModelInfo& info, std::int64_t seqLength)
-// {
-//     const std::array<std::int64_t, 3> inputShape = {std::int64_t(batches.size()), seqLength, info.vocab_size};
-//     logitsTensor = Ort::Value::CreateTensor<DataType>(defaultAllocator, inputShape.data(), inputShape.size());
-
-//     const std::array<std::int64_t, 5> emptyPresentShape = {2, std::int64_t(batches.size()), info.num_attention_heads, seqLength, info.hidden_size / info.num_attention_heads};
-//     for (std::int32_t i = 0; i < info.num_layer; i++)
-//     {
-//         presentTensors[i] = Ort::Value::CreateTensor<DataType>(defaultAllocator, emptyPresentShape.data(), emptyPresentShape.size());
-//     }
-// }
-
 void RunInstance::bindInputs(const ModelInfo& modelInfo)
 {
     // Bind inputs
@@ -414,7 +309,7 @@ void RunInstance::bind(const ModelInfo& modelInfo)
 
 void RunInstance::reset()
 {
-    isFirstRun = true;
+    subsequentGenerationIndex = 0;
     seqLength = 0;
 }
 
@@ -454,11 +349,13 @@ void PrintTensorContent(const Ort::Value& value) {
 }
 
 
-void MusicGenerator::generate(RunInstance& input)
+void MusicGenerator::preGenerate(RunInstance& input)
 {
-    if (input.isFirstRun)
+    if (input.subsequentGenerationIndex == 0)
     {
         input.seqLength = input.batches[0]->inputIds.size();
+        assert(input.seqLength <= input.maxInputLength);
+
         input.createInputIdsTensor(modelInfo);
         input.createPositionIdsTensor(modelInfo);
         input.createAttentionMaskTensor(modelInfo, input.seqLength);
@@ -476,39 +373,9 @@ void MusicGenerator::generate(RunInstance& input)
 
         input.bindOutputs(modelInfo);
     }
-
-    // Ort::AllocatorWithDefaultOptions allocator;
-    // for (size_t j = 0; j < session->GetInputCount(); j++)
-    // {
-    //     const auto& input_name = session->GetInputNameAllocated(j, allocator);
-    //     auto type_info = session->GetInputTypeInfo(j);
-    //     auto tensor_info = type_info.GetTensorTypeAndShapeInfo();
-    //     std::cout << "Input " << input_name << " has shape: ";
-    //     for (const auto dim : tensor_info.GetShape()) {
-    //         std::cout << dim << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
-
-    #ifdef PRINT_TENSOR_UPDATE
-
-    // std::cout << "Inputs:" << std::endl;
-    // PrintTensorContent<int32_t>(input.inputIdsTensor);
-    // PrintTensorContent<int32_t>(input.positionIdsTensor);
-    // PrintTensorContent<int32_t>(input.attentionMaskTensor);
-
-    // if (!input.presentTensors.empty())
-    // {
-    //     PrintTensorContent<int32_t>(input.presentTensors[0]);
-    // }
-
-    // if (!input.pastTensors.empty())
-    // {
-    //     PrintTensorContent<int32_t>(input.pastTensors[0]);
-    // }
-
-    #endif
-
+}
+void MusicGenerator::generate(RunInstance& input)
+{
     try 
     {
         // std::cout << "=============" << std::endl;
@@ -520,56 +387,23 @@ void MusicGenerator::generate(RunInstance& input)
         std::cout << "Error code: " << e.GetOrtErrorCode() << std::endl;    // Error code
         exit(1);
     }
+}
 
-    #ifdef PRINT_TENSOR_UPDATE
-
-    // std::cout << "Outputs:" << std::endl;
-    // PrintTensorContent<int32_t>(input.inputIdsTensor);
-    // PrintTensorContent<int32_t>(input.positionIdsTensor);
-    // PrintTensorContent<int32_t>(input.attentionMaskTensor);
-
-    // if (!input.presentTensors.empty())
-    // {
-    //     PrintTensorContent<int32_t>(input.presentTensors[0]);
-    // }
-
-    // if (!input.pastTensors.empty())
-    // {
-    //     PrintTensorContent<int32_t>(input.pastTensors[0]);
-    // }
-
-    #endif
-
-
-    // input.presentTensors.swap(std::move(input.pastTensors));
-
-    // input.presentTensors.swap(input.pastTensors);
-
-    // @TODO for each batch
-    const Ort::Value& output_tensor = input.logitsTensor; // logits
+void MusicGenerator::getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
+{
+    const Ort::Value& output_tensor = logitsTensor; // logits
     const float* output_data = output_tensor.GetTensorData<float>();
     Ort::TensorTypeAndShapeInfo tensorInfo = output_tensor.GetTensorTypeAndShapeInfo();
     std::vector<int64_t> shape = tensorInfo.GetShape();
-
-
-    // for (int64_t batchIndex = 0; batchIndex < shape[0]; batchIndex++)
-    // {
-    //     // Greedy approach is used here. You can easily extend it to use beam search and sampling to pick next tokens.
-    //     next_tokens = torch.argmax(next_token_logits, dim=-1)
-    // }
-    
-    // next_token_logits = torch_output[0][:, -1, :]
-
 
     int64_t batchSize = shape[0];
     int64_t vocab_size = shape[2];
 
 
     // Greedy
-    // @TODO : optimize with custom search
+    // @TODO : optimize with custom search (?)
     
     // Get the last token's logits for each sequence in the batch
-    std::vector<RunInstance::DataType> next_tokens(batchSize);
     for(int b = 0; b < batchSize; ++b) {
         // Pointer to the logits for the last token
         const float* last_logits = output_data + (b * shape[1] + (shape[1] - 1)) * vocab_size;
@@ -583,16 +417,69 @@ void MusicGenerator::generate(RunInstance& input)
                 max_index = v;
             }
         }
-        next_tokens[b] = max_index;
+        outNextTokens[b] = max_index;
     }
+}
 
-    for (int64_t b = 0; b < batchSize; ++b) 
+void MusicGenerator::getNextTokens(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
+{
+    getNextTokens_greedy(logitsTensor, outNextTokens);
+}
+
+void RunInstance::copyAndShiftPresentIntoNextPast(const float* presentData, float* pastData, int64_t presentShape[], int64_t pastShape[])
+{
+    assert((pastShape[3] + 1) == presentShape[3]);
+    for (int j = 0; j < pastShape[0]; j++)
+    {
+        for (int64_t batch = 0; batch < pastShape[1]; ++batch) 
+        {
+            for (int64_t head = 0; head < pastShape[2]; ++head) 
+            {
+                for (int64_t seq = 0; seq < pastShape[3]; ++seq) // Skip first element 
+                {
+                    int64_t presentSeq = seq+1;
+                    int64_t pastSeq = seq;
+                    for (int64_t embed = 0; embed < pastShape[4]; ++embed) 
+                    { 
+                        int64_t presentId = embed 
+                                        + presentSeq * presentShape[4] 
+                                        + head * presentShape[3] * presentShape[4]
+                                        + batch * presentShape[2] * presentShape[3] * presentShape[4]
+                                        + j * presentShape[1] * presentShape[2] * presentShape[3] * presentShape[4];
+
+                        int64_t pastId = embed 
+                                        + pastSeq * pastShape[4] 
+                                        + head * pastShape[3] * pastShape[4]
+                                        + batch * pastShape[2] * pastShape[3] * pastShape[4]
+                                        + j * pastShape[1] * pastShape[2] * pastShape[3] * pastShape[4];
+
+                        pastData[pastId] = presentData[presentId];
+
+                    // std::copy(
+                    //     original_data + ((batch * shape[1] + head) * seq_len + seq) * elements_per_seq,
+                    //     original_data + ((batch * shape[1] + head) * seq_len + seq + 1) * elements_per_seq,
+                    //     sliced_data.begin() + ((batch * shape[1] + head) * (seq_len - 1) + (seq - 1)) * elements_per_seq
+                    // );
+                    }
+                }
+            }
+        }
+    }
+}
+
+void MusicGenerator::postGenerate(RunInstance& input)
+{
+    std::vector<RunInstance::DataType> nextTokens(input.getNbBatches());
+    getNextTokens(input.logitsTensor, nextTokens);
+
+    // Update next inputs
+    for (int64_t b = 0; b < input.getNbBatches(); ++b) 
     {
         DataType lastElem = input.batches[b]->positionIds.back();
         input.batches[b]->positionIds.clear();
         input.batches[b]->positionIds.push_back(lastElem + 1); // @TODO : Modulo? or already handled by the model?
 
-        input.batches[b]->lastGeneratedToken = next_tokens[b];
+        input.batches[b]->lastGeneratedToken = nextTokens[b];
     }
 
     // // Update has_eos flags
@@ -611,15 +498,8 @@ void MusicGenerator::generate(RunInstance& input)
     //     }
     // }
 
-    // std::int32_t batchIndex = 0;
-    // for (auto& batch : input.batches)
-    // {
-    //     batch->push(next_tokens[batchIndex]);
-    //     batchIndex++;
-    // }
-    // input.updateInputTensors(modelInfo);
-    
-    if (input.isFirstRun)
+    // Create IoBinding optimized inputs
+    if (input.subsequentGenerationIndex == 0)
     {
         input.createInputIdsTensorCache(modelInfo);
         input.createPositionIdsTensorCache(modelInfo);
@@ -638,66 +518,118 @@ void MusicGenerator::generate(RunInstance& input)
     }
     else
     {
+        // if first time, the past is empty; have to initialize
+        // we can easily get here if we brute force with reset() every generation,
+        // or by having a starting context big enough
+        if (input.subsequentGenerationIndex == 0)
+        {
+            // @TODO : createPastTensors() function instead 
+            std::swap(input.presentTensors, input.pastTensors);
+            input.createPresentTensors(modelInfo, input.maxInputLength-1);
+            std::swap(input.presentTensors, input.pastTensors);
+        }
+
         // remove the oldest "dim" of input.pastTensors when reaching 512 to prevent overloading  
         // Copy previous "past" values
-
         for (size_t i = 0; i < input.presentTensors.size(); i++)
         {
             const float* presentData = input.presentTensors[i].GetTensorData<float>();
-
             float* pastData = input.pastTensors[i].GetTensorMutableData<float>();
 
+            std::int64_t presentShape[] = {2, input.getNbBatches(), modelInfo.num_attention_heads, input.maxInputLength, modelInfo.hidden_size / modelInfo.num_attention_heads};
+            std::int64_t pastShape[] = {2, input.getNbBatches(), modelInfo.num_attention_heads, input.maxInputLength-1, modelInfo.hidden_size / modelInfo.num_attention_heads};
+
+            // Ensure sizes are correct
+            #ifndef NDEBUG
             auto tensor_info2 = input.presentTensors[i].GetTensorTypeAndShapeInfo();
-            std::vector<int64_t> shape2 = tensor_info2.GetShape();
+            std::vector<int64_t> presentShape2 = tensor_info2.GetShape();
 
             auto tensor_info = input.pastTensors[i].GetTensorTypeAndShapeInfo();
-            std::vector<int64_t> shape = tensor_info.GetShape();
+            std::vector<int64_t> pastShape2 = tensor_info.GetShape();
 
-            for (int j = 0; j < shape[0]; j++)
+            for (size_t i = 0; i < presentShape2.size(); i++)
             {
-                for (int64_t batch = 0; batch < shape[1]; ++batch) 
-                {
-                    for (int64_t head = 0; head < shape[2]; ++head) 
-                    {
-                        for (int64_t seq = 0; seq < shape[3]; ++seq) // Skip first element 
-                        {
-                            int64_t presentSeq = seq+1;
-                            int64_t pastSeq = seq;
-                            for (int64_t embed = 0; embed < shape[4]; ++embed) 
-                            { 
-                                int64_t presentId = embed 
-                                                + presentSeq * shape[4] 
-                                                + head * (shape[3]+1) * shape[4]
-                                                + batch * shape[2] * (shape[3]+1) * shape[4]
-                                                + j * shape[1] * shape[2] * (shape[3]+1) * shape[4];
-
-                                int64_t pastId = embed 
-                                                + pastSeq * shape[4] 
-                                                + head * shape[3] * shape[4]
-                                                + batch * shape[2] * shape[3] * shape[4]
-                                                + j * shape[1] * shape[2] * shape[3] * shape[4];
-
-                                pastData[pastId] = presentData[presentId];
-
-                            // std::copy(
-                            //     original_data + ((batch * shape[1] + head) * seq_len + seq) * elements_per_seq,
-                            //     original_data + ((batch * shape[1] + head) * seq_len + seq + 1) * elements_per_seq,
-                            //     sliced_data.begin() + ((batch * shape[1] + head) * (seq_len - 1) + (seq - 1)) * elements_per_seq
-                            // );
-                            }
-                        }
-                    }
-                }
+                assert(presentShape[i] == presentShape2[i]);
             }
+
+            for (size_t i = 0; i < pastShape2.size(); i++)
+            {
+                assert(pastShape[i] == pastShape2[i]);
+            }
+
+            #endif
+            
+            input.copyAndShiftPresentIntoNextPast(presentData, pastData, presentShape, pastShape);
         }
     }
 
-    input.updateInputIdsTensorCache(modelInfo, next_tokens);
+    input.updateInputIdsTensorCache(modelInfo, nextTokens);
     input.updatePositionIdsTensor(modelInfo); // @TODO : Cache version?
 
     input.bind(modelInfo);
 
-    input.isFirstRun = false;
+    input.subsequentGenerationIndex += 1;
+}
+
+void MusicGenerator::printInputsInfo()
+{
+    Ort::AllocatorWithDefaultOptions allocator;
+    for (size_t j = 0; j < session->GetInputCount(); j++)
+    {
+        const auto& input_name = session->GetInputNameAllocated(j, allocator);
+        auto type_info = session->GetInputTypeInfo(j);
+        auto tensor_info = type_info.GetTensorTypeAndShapeInfo();
+        std::cout << "Input " << input_name << " has shape: ";
+        for (const auto dim : tensor_info.GetShape()) {
+            std::cout << dim << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+void RunInstance::printInputTensors()
+{
+    std::cout << "Inputs:" << std::endl;
+    PrintTensorContent<int32_t>(inputIdsTensor);
+    PrintTensorContent<int32_t>(positionIdsTensor);
+    PrintTensorContent<int32_t>(attentionMaskTensor);
+
+    if (!presentTensors.empty())
+    {
+        PrintTensorContent<int32_t>(presentTensors[0]);
+    }
+
+    if (!pastTensors.empty())
+    {
+        PrintTensorContent<int32_t>(pastTensors[0]);
+    }
+}
+
+void RunInstance::printOutputTensors()
+{
+    std::cout << "Outputs:" << std::endl;
+    PrintTensorContent<int32_t>(inputIdsTensor);
+    PrintTensorContent<int32_t>(positionIdsTensor);
+    PrintTensorContent<int32_t>(attentionMaskTensor);
+
+    if (!presentTensors.empty())
+    {
+        PrintTensorContent<int32_t>(presentTensors[0]);
+    }
+
+    if (!pastTensors.empty())
+    {
+        PrintTensorContent<int32_t>(pastTensors[0]);
+    }
+}
+
+void MusicGenerator::generateNextToken(RunInstance& input)
+{
+    preGenerate(input);
+
+    generate(input);
+
+    postGenerate(input);
 }
 
 

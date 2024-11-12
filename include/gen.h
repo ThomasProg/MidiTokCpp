@@ -19,6 +19,10 @@ extern "C"
     API_EXPORT void generator_loadOnnxModel(MusicGeneratorHandle generator, EnvHandle env, const char* path);
     API_EXPORT void generator_generateNextToken(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
 
+    API_EXPORT void generator_preGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+    API_EXPORT void generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+    API_EXPORT void generator_postGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+
     API_EXPORT void generator_setConfig(MusicGeneratorHandle generator, int64_t num_attention_heads, int64_t hidden_size, int64_t num_layer);
 
     API_EXPORT RunInstance* generator_createRunInstance(MusicGeneratorHandle generator); 

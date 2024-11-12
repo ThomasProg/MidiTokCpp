@@ -46,8 +46,28 @@ void generator_loadOnnxModel(MusicGeneratorHandle generator, EnvHandle env, cons
 
 void generator_generateNextToken(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
 {
+    assert(generator != nullptr && runInstance != nullptr);
+    generator->generateNextToken(*runInstance);
+}
+
+void generator_preGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
+{
+    assert(generator != nullptr && runInstance != nullptr);
+    generator->preGenerate(*runInstance);   
+}
+
+void generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
+{
+    assert(generator != nullptr && runInstance != nullptr);
     generator->generate(*runInstance);
 }
+
+void generator_postGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
+{
+    assert(generator != nullptr && runInstance != nullptr);
+    generator->postGenerate(*runInstance);
+}
+
 
 void generator_setConfig(MusicGeneratorHandle generator, int64_t num_attention_heads, int64_t hidden_size, int64_t num_layer)
 {

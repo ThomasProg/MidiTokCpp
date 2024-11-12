@@ -17,7 +17,7 @@ public:
     std::vector<DataType> attentionMask;
     std::vector<DataType> positionIds;
 
-    DataType lastGeneratedToken;
+    DataType lastGeneratedToken = 0;
 
 public:
     void push(DataType inInputId, DataType inMask, DataType inPositionId);
@@ -59,8 +59,7 @@ struct RunInstance
 
     std::int64_t seqLength = 0;
     std::int64_t maxInputLength = 255; // ideally, the amount of tokens the model can process 
-
-    bool isFirstRun = true;
+    std::int64_t subsequentGenerationIndex = 0;
 
 public:
     void updateInputIdsTensor(const ModelInfo& info);
@@ -88,7 +87,17 @@ public:
     void bindOutputs(const ModelInfo& modelInfo);
     void bind(const ModelInfo& modelInfo);
 
+    std::size_t getNbBatches() const
+    {
+        return batches.size();
+    }
+
     void reset();
+
+    void copyAndShiftPresentIntoNextPast(const float* presentData, float* pastData, int64_t presentShape[], int64_t pastShape[]);
+
+    void printInputTensors();
+    void printOutputTensors();
 };
 
 struct ModelInfo
@@ -121,9 +130,23 @@ public:
 public:
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);
     void loadOnnxModel(const Ort::Env& env, const std::string& modelPath);
+
+    void getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
+    void getNextTokens(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
+
+    void preGenerate(RunInstance& input);
     void generate(RunInstance& input);
+    void postGenerate(RunInstance& input);
+
+    // Generate the next token given the input.
+    // Internally calls preRun() -> run() -> postRun()
+    // Call them manually if you want to access correct values for present and past tensors inbetween.
+    void generateNextToken(RunInstance& input);
 
     RunInstance* createRunInstance();
     RunInstance generateInput(std::vector<RunInstance::DataType>&& inputTokens);
+
+
+    void printInputsInfo();
 };
 

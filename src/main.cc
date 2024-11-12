@@ -85,22 +85,40 @@ int main()
 	2649,  1173,    50,   967,  1621,   256,  1564,   653,  1701,   377
 	};
 
+	std::vector<std::int32_t> inputIds(std::begin(input_ids), std::end(input_ids));
+
 	auto start = std::chrono::high_resolution_clock::now();
 
-	int32_t size = sizeof(input_ids) / sizeof(*input_ids);
 	// RunInstanceHandle runInstance = createRunInstance();
 	RunInstanceHandle runInstance = generator_createRunInstance(generator);
 	BatchHandle batch = createBatch();
+
+	int LineNbMaxToken = 256;
+
 	runInstance_addBatch(runInstance, batch);
-	batch_set(batch, input_ids, size, 0);
+	runInstance_setMaxInputLength(runInstance, LineNbMaxToken);
 
 	std::vector<int32_t> encodedTokensVec;
-	for (int i = 0; i < 1000; i++)
+	for (int i = 0; i < 300; i++)
 	{
-		generator_generateNextToken(generator, runInstance);
+		runInstance_reset(runInstance);
+
+		std::vector<std::int32_t> context;
+		int32_t start = std::max(0, int(inputIds.size() - LineNbMaxToken));
+		for (int i = start; i < inputIds.size(); i++)
+		{
+			context.push_back(inputIds[i]);
+		}
+		batch_set(batch, context.data(), context.size(), 0);
+
+		// generator_generateNextToken(generator, runInstance);
+		generator_preGenerate(generator, runInstance);
+		generator_generate(generator, runInstance);
+		generator_postGenerate(generator, runInstance);
 
 		int32_t newToken = batch_getLastGeneratedToken(batch);
 		encodedTokensVec.push_back(newToken);
+		inputIds.push_back(newToken);
 	}
 
 	// DataType* encodedTokens = nullptr; 

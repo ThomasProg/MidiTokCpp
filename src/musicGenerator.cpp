@@ -2,8 +2,8 @@
 
 #include <sstream>
 
-#define PRINT_TENSOR_UPDATE
-#define PRINT_TENSOR_SHAPE
+// #define PRINT_TENSOR_UPDATE
+// #define PRINT_TENSOR_SHAPE
 
 
 void Batch::push(DataType inInputId, DataType inMask, DataType inPositionId)
@@ -412,6 +412,12 @@ void RunInstance::bind(const ModelInfo& modelInfo)
     bindOutputs(modelInfo);
 }
 
+void RunInstance::reset()
+{
+    isFirstRun = true;
+    seqLength = 0;
+}
+
 template<typename T>
 void PrintTensorContent(const Ort::Value& value) {
     // Get the tensor's shape
@@ -470,12 +476,6 @@ void MusicGenerator::generate(RunInstance& input)
 
         input.bindOutputs(modelInfo);
     }
-    // else 
-    // {
-    //     input.createPresentTensors(modelInfo, 30);
-
-    //     input.bindOutputs(modelInfo);
-    // }
 
     // Ort::AllocatorWithDefaultOptions allocator;
     // for (size_t j = 0; j < session->GetInputCount(); j++)
@@ -513,16 +513,6 @@ void MusicGenerator::generate(RunInstance& input)
     {
         // std::cout << "=============" << std::endl;
         session->Run(Ort::RunOptions{nullptr}, input.io_binding);
-
-
-        // if (useIOBindings)
-        // {
-
-        // }
-        // else 
-        // {
-        //     output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesCStr.data(), input.inputDataTensors.data(), input.inputDataTensors.size(), outputNames.data(), outputNames.size());
-        // }
     }
     catch(const Ort::Exception& e)
     {
@@ -637,42 +627,19 @@ void MusicGenerator::generate(RunInstance& input)
         input.updateAttentionMaskTensorCache(modelInfo, 1);
 
         input.createLogitsTensor(modelInfo, 1);
-        // input.createPresentTensors(modelInfo, 1);
     }
 
-    if (input.pastSequenceLength < modelInfo.nbMaxPositions)
-    {
-        input.pastSequenceLength += 1;
-    }
-
-
-    if (input.seqLength < modelInfo.nbMaxPositions)
+    if (input.seqLength < input.maxInputLength)
     {
         input.seqLength += 1;
 
         input.pastTensors = std::move(input.presentTensors);
         input.createPresentTensors(modelInfo, input.seqLength);
-
-
-
-
-        // if (input.seqLength < modelInfo.nbMaxPositions)
-        // {
-        //     input.pastTensors = std::move(input.presentTensors);
-        //     input.createPresentTensors(modelInfo, input.seqLength);
-        // }
-        // else
-        // {
-            
-        // }
     }
     else
     {
-        // @TODO : remove the oldest "dim" of input.pastTensors when reaching 512 to prevent overloading  
+        // remove the oldest "dim" of input.pastTensors when reaching 512 to prevent overloading  
         // Copy previous "past" values
-
-        // input.createPresentTensors(modelInfo, input.seqLength);
-        // input.createPastTensors(modelInfo, input.seqLength-1);
 
         for (size_t i = 0; i < input.presentTensors.size(); i++)
         {
@@ -685,48 +652,6 @@ void MusicGenerator::generate(RunInstance& input)
 
             auto tensor_info = input.pastTensors[i].GetTensorTypeAndShapeInfo();
             std::vector<int64_t> shape = tensor_info.GetShape();
-
-            // size_t offset = shape.back();
-
-            // for (int j = 0; j < shape[0]; j++)
-            // {
-            //     for (int64_t batch = 0; batch < shape[1]; ++batch) 
-            //     {
-            //         for (int64_t head = 0; head < shape[2]; ++head) 
-            //         {
-            //             for (int64_t seq = 0; seq < shape[3]; ++seq) // Skip first element 
-            //             {
-            //                 int64_t presentSeq = seq+1;
-            //                 int64_t pastSeq = seq;
-            //                 for (int64_t embed = 0; embed < shape[4]; ++embed) 
-            //                 { 
-            //                     int64_t presentId = embed 
-            //                                     + presentSeq * shape[4] 
-            //                                     + head * (shape[3]+1) * shape[4]
-            //                                     + batch * shape[2] * (shape[3]+1) * shape[4]
-            //                                     + j * shape[1] * shape[2] * (shape[3]+1) * shape[4];
-
-            //                     int64_t pastId = embed 
-            //                                     + pastSeq * shape[4] 
-            //                                     + head * shape[3] * shape[4]
-            //                                     + batch * shape[2] * shape[3] * shape[4]
-            //                                     + j * shape[1] * shape[2] * shape[3] * shape[4];
-
-            //                     pastData[pastId] = presentData[presentId];
-
-            //                 // std::copy(
-            //                 //     original_data + ((batch * shape[1] + head) * seq_len + seq) * elements_per_seq,
-            //                 //     original_data + ((batch * shape[1] + head) * seq_len + seq + 1) * elements_per_seq,
-            //                 //     sliced_data.begin() + ((batch * shape[1] + head) * (seq_len - 1) + (seq - 1)) * elements_per_seq
-            //                 // );
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-
-            std::vector<bool> r;
-            r.resize(shape[0] * shape[1] * shape[2] * shape[3] * shape[4]);
 
             for (int j = 0; j < shape[0]; j++)
             {
@@ -753,7 +678,6 @@ void MusicGenerator::generate(RunInstance& input)
                                                 + j * shape[1] * shape[2] * shape[3] * shape[4];
 
                                 pastData[pastId] = presentData[presentId];
-                                r[pastId] = true;
 
                             // std::copy(
                             //     original_data + ((batch * shape[1] + head) * seq_len + seq) * elements_per_seq,
@@ -765,83 +689,8 @@ void MusicGenerator::generate(RunInstance& input)
                     }
                 }
             }
-
-
-            for (int i = 0; i < r.size(); i++)
-            {
-                assert(r[i]);
-            }
-
-
-
-
-
-
-
-
-
-
-            // for (int j = 0; j < shape[0]; ++j) {
-            //     int64_t past_batch_offset_j = j * shape[1] * shape[2] * shape[3] * shape[4];
-            //     int64_t present_batch_offset_j = j * shape[1] * shape[2] * (shape[3] + 1) * shape[4];
-
-            //     for (int64_t batch = 0; batch < shape[1]; ++batch) {
-            //         int64_t past_batch_offset = batch * shape[2] * shape[3] * shape[4] + past_batch_offset_j;
-            //         int64_t present_batch_offset = batch * shape[2] * (shape[3] + 1) * shape[4] + present_batch_offset_j;
-
-            //         for (int64_t head = 0; head < shape[2]; ++head) {
-            //             int64_t past_head_offset = head * shape[3] * shape[4] + past_batch_offset;
-            //             int64_t present_head_offset = head * (shape[3] + 1) * shape[4] + present_batch_offset;
-
-            //             for (int64_t seq = 0; seq < shape[3]; ++seq) { // Skip first element
-            //                 int64_t past_offset = seq * shape[4] + past_head_offset;
-            //                 int64_t present_offset = (seq + 1) * shape[4] + present_head_offset;
-
-            //                 // Use std::copy to handle entire embedding dimension at once
-            //                 std::copy(
-            //                     presentData + present_offset,
-            //                     presentData + present_offset + shape[4],
-            //                     pastData + past_offset
-            //                 );
-            //             }
-            //         }
-            //     }
-            // }
-
-
-
-
-            // int64_t batch_size = shape[0];
-            // int64_t num_heads = shape[1];
-            // int64_t seq_len = shape[2];
-            // int64_t embedding_dim = shape[3];
-
-            // // Calculate the offset to skip the first sequence element in presentData
-            // int64_t offset = 1 * embedding_dim; // Skip the first element along sequence dim
-
-            // for (int64_t x = 0; x < 2; ++x) {
-            //     for (int64_t b = 0; b < batch_size; ++b) {
-            //         for (int64_t h = 0; h < num_heads; ++h) {
-            //             // Calculate the base address for the current batch and head
-            //             float* past_ptr = pastData + ((x * batch_size + b) * num_heads + h) * seq_len * embedding_dim;
-            //             const float* present_ptr = presentData + ((x * batch_size + b) * num_heads + h) * (seq_len + 1) * embedding_dim + offset;
-
-            //             // Copy all elements from the current `present` (skipping first sequence element) to `past`
-            //             std::copy(present_ptr, present_ptr + seq_len * embedding_dim, past_ptr);
-            //         }
-            //     }
-            // }
-
-
-
         }
     }
-
-    // else if (input.seqLength < modelInfo.nbMaxPositions)
-    // else
-    // {
-    //     input.createPresentTensors(modelInfo, input.seqLength);
-    // }
 
     input.updateInputIdsTensorCache(modelInfo, next_tokens);
     input.updatePositionIdsTensor(modelInfo); // @TODO : Cache version?

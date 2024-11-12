@@ -69,7 +69,11 @@ extern "C"
     API_EXPORT void runInstance_addBatch(RunInstanceHandle runInstance, BatchHandle batch);
     API_EXPORT void runInstance_removeBatch(RunInstanceHandle runInstance, BatchHandle batch);
     API_EXPORT std::int32_t runInstance_nbBatches(RunInstanceHandle runInstance);
+    API_EXPORT void runInstance_setMaxInputLength(RunInstanceHandle runInstance, std::int32_t newMaxInputLength);
 
+    API_EXPORT void runInstance_reset(RunInstanceHandle runInstance);
+    API_EXPORT const float* runInstance_getPastTensor(RunInstanceHandle runInstance, std::int32_t index);
+    API_EXPORT const float* runInstance_getPresentTensor(RunInstanceHandle runInstance, std::int32_t index);
 }
 
 // Tokenizer

@@ -191,8 +191,31 @@ std::int32_t runInstance_nbBatches(RunInstanceHandle runInstance)
     return std::int32_t(runInstance->batches.size());
 }
 
+void runInstance_setMaxInputLength(RunInstanceHandle runInstance, std::int32_t newMaxInputLength)
+{
+    runInstance->maxInputLength = newMaxInputLength;
+}
+
+void runInstance_reset(RunInstanceHandle runInstance)
+{
+    runInstance->reset();
+}
+
+const float* runInstance_getPastTensor(RunInstanceHandle runInstance, std::int32_t index)
+{
+    // Ort::TensorTypeAndShapeInfo tensorInfo = runInstance->pastTensors[index].GetTensorTypeAndShapeInfo();
+    // std::vector<std::int64_t> shape = tensorInfo.GetShape();
+
+    // *nbDims = shape.size();
 
 
+    return runInstance->pastTensors[index].GetTensorData<float>();
+}
+
+const float* runInstance_getPresentTensor(RunInstanceHandle runInstance, std::int32_t index)
+{
+    return runInstance->presentTensors[index].GetTensorData<float>();
+}
 
 
 bool isBarNone(MidiTokenizerHandle tokenizer, std::int32_t token)

@@ -58,7 +58,8 @@ struct RunInstance
     std::vector<Ort::Value> pastTensors; // cache
 
     std::int64_t seqLength = 0;
-    std::int64_t pastSequenceLength = 0;
+    std::int64_t maxInputLength = 255; // ideally, the amount of tokens the model can process 
+
     bool isFirstRun = true;
 
 public:
@@ -86,6 +87,8 @@ public:
     void bindInputs(const ModelInfo& modelInfo);
     void bindOutputs(const ModelInfo& modelInfo);
     void bind(const ModelInfo& modelInfo);
+
+    void reset();
 };
 
 struct ModelInfo

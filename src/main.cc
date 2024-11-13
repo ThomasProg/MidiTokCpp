@@ -98,18 +98,28 @@ int main()
 	runInstance_addBatch(runInstance, batch);
 	runInstance_setMaxInputLength(runInstance, LineNbMaxToken);
 
-	std::vector<int32_t> encodedTokensVec;
-	for (int i = 0; i < 300; i++)
-	{
-		runInstance_reset(runInstance);
+	bool forceUpdate = false;
 
-		std::vector<std::int32_t> context;
-		int32_t start = std::max(0, int(inputIds.size() - LineNbMaxToken));
-		for (int i = start; i < inputIds.size(); i++)
+	if (!forceUpdate)
+	{
+		batch_set(batch, inputIds.data(), inputIds.size(), 0);
+	}
+
+	std::vector<int32_t> encodedTokensVec;
+	for (int i = 0; i < 10000; i++)
+	{
+		if (forceUpdate)
 		{
-			context.push_back(inputIds[i]);
+			runInstance_reset(runInstance);
+
+			std::vector<std::int32_t> context;
+			int32_t start = std::max(0, int(inputIds.size() - LineNbMaxToken));
+			for (int i = start; i < inputIds.size(); i++)
+			{
+				context.push_back(inputIds[i]);
+			}
+			batch_set(batch, context.data(), context.size(), 0);
 		}
-		batch_set(batch, context.data(), context.size(), 0);
 
 		// generator_generateNextToken(generator, runInstance);
 		generator_preGenerate(generator, runInstance);

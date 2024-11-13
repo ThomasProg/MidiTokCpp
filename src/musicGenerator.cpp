@@ -428,6 +428,40 @@ void MusicGenerator::getNextTokens(const Ort::Value& logitsTensor, std::vector<R
 
 void RunInstance::copyAndShiftPresentIntoNextPast(const float* presentData, float* pastData, int64_t presentShape[], int64_t pastShape[])
 {
+    // assert((pastShape[3] + 1) == presentShape[3]);
+    // for (int j = 0; j < pastShape[0]; j++)
+    // {
+    //     for (int64_t batch = 0; batch < pastShape[1]; ++batch) 
+    //     {
+    //         for (int64_t head = 0; head < pastShape[2]; ++head) 
+    //         {
+    //             for (int64_t seq = 0; seq < pastShape[3]; ++seq) // Skip first element 
+    //             {
+    //                 int64_t presentSeq = seq+1;
+    //                 int64_t pastSeq = seq;
+    //                 for (int64_t embed = 0; embed < pastShape[4]; ++embed) 
+    //                 { 
+    //                     int64_t presentId = embed 
+    //                                     + presentSeq * presentShape[4] 
+    //                                     + head * presentShape[3] * presentShape[4]
+    //                                     + batch * presentShape[2] * presentShape[3] * presentShape[4]
+    //                                     + j * presentShape[1] * presentShape[2] * presentShape[3] * presentShape[4];
+
+    //                     int64_t pastId = embed 
+    //                                     + pastSeq * pastShape[4] 
+    //                                     + head * pastShape[3] * pastShape[4]
+    //                                     + batch * pastShape[2] * pastShape[3] * pastShape[4]
+    //                                     + j * pastShape[1] * pastShape[2] * pastShape[3] * pastShape[4];
+
+    //                     pastData[pastId] = presentData[presentId];
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+
+
     assert((pastShape[3] + 1) == presentShape[3]);
     for (int j = 0; j < pastShape[0]; j++)
     {
@@ -435,33 +469,25 @@ void RunInstance::copyAndShiftPresentIntoNextPast(const float* presentData, floa
         {
             for (int64_t head = 0; head < pastShape[2]; ++head) 
             {
-                for (int64_t seq = 0; seq < pastShape[3]; ++seq) // Skip first element 
-                {
-                    int64_t presentSeq = seq+1;
-                    int64_t pastSeq = seq;
-                    for (int64_t embed = 0; embed < pastShape[4]; ++embed) 
-                    { 
-                        int64_t presentId = embed 
-                                        + presentSeq * presentShape[4] 
-                                        + head * presentShape[3] * presentShape[4]
-                                        + batch * presentShape[2] * presentShape[3] * presentShape[4]
-                                        + j * presentShape[1] * presentShape[2] * presentShape[3] * presentShape[4];
+                int64_t presentId = 0 
+                                + (0+1) * presentShape[4] 
+                                + head * presentShape[3] * presentShape[4]
+                                + batch * presentShape[2] * presentShape[3] * presentShape[4]
+                                + j * presentShape[1] * presentShape[2] * presentShape[3] * presentShape[4];
 
-                        int64_t pastId = embed 
-                                        + pastSeq * pastShape[4] 
-                                        + head * pastShape[3] * pastShape[4]
-                                        + batch * pastShape[2] * pastShape[3] * pastShape[4]
-                                        + j * pastShape[1] * pastShape[2] * pastShape[3] * pastShape[4];
+                int64_t presentIdEnd = 0
+                                + presentShape[3] * presentShape[4] 
+                                + head * presentShape[3] * presentShape[4]
+                                + batch * presentShape[2] * presentShape[3] * presentShape[4]
+                                + j * presentShape[1] * presentShape[2] * presentShape[3] * presentShape[4];
 
-                        pastData[pastId] = presentData[presentId];
+                int64_t pastId = 0 
+                                + 0 * pastShape[4] 
+                                + head * pastShape[3] * pastShape[4]
+                                + batch * pastShape[2] * pastShape[3] * pastShape[4]
+                                + j * pastShape[1] * pastShape[2] * pastShape[3] * pastShape[4];
 
-                    // std::copy(
-                    //     original_data + ((batch * shape[1] + head) * seq_len + seq) * elements_per_seq,
-                    //     original_data + ((batch * shape[1] + head) * seq_len + seq + 1) * elements_per_seq,
-                    //     sliced_data.begin() + ((batch * shape[1] + head) * (seq_len - 1) + (seq - 1)) * elements_per_seq
-                    // );
-                    }
-                }
+                std::copy(presentData + presentId, presentData + presentIdEnd, pastData + pastId);
             }
         }
     }

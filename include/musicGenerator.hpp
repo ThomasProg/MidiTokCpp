@@ -87,9 +87,9 @@ public:
     void bindOutputs(const ModelInfo& modelInfo);
     void bind(const ModelInfo& modelInfo);
 
-    std::size_t getNbBatches() const
+    std::int64_t getNbBatches() const
     {
-        return batches.size();
+        return std::int64_t(batches.size());
     }
 
     void reset();

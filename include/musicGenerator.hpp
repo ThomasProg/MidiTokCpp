@@ -61,6 +61,8 @@ struct RunInstance
     std::int64_t maxInputLength = 255; // ideally, the amount of tokens the model can process 
     std::int64_t subsequentGenerationIndex = 0;
 
+    std::vector<RunInstance::DataType> nextTokens;
+
 public:
     void updateInputIdsTensor(const ModelInfo& info);
     void updatePositionIdsTensor(const ModelInfo& info);
@@ -81,8 +83,16 @@ public:
     void createLogitsTensor(const ModelInfo& info, std::int64_t seqLength);
     void createPastTensors(const ModelInfo& info, std::int64_t seqLength);
 
-    // void createInputTensors(const ModelInfo& info, std::int64_t seqLength);
-    // void createOutputTensors(const ModelInfo& info, std::int64_t seqLength);
+    // Bind Inputs
+    void bindInputIds(const ModelInfo& modelInfo);
+    void bindPositionIds(const ModelInfo& modelInfo);
+    void bindAttentionMask(const ModelInfo& modelInfo);
+    void bindPasts(const ModelInfo& modelInfo);
+
+    // Bind Outputs
+    void bindPresents(const ModelInfo& modelInfo);
+    void bindLogits(const ModelInfo& modelInfo);
+
     void bindInputs(const ModelInfo& modelInfo);
     void bindOutputs(const ModelInfo& modelInfo);
     void bind(const ModelInfo& modelInfo);

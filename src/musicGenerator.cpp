@@ -278,28 +278,50 @@ void RunInstance::updateInputIdsTensorCache(const ModelInfo& info, const std::ve
     }
 }
 
-void RunInstance::bindInputs(const ModelInfo& modelInfo)
+void RunInstance::bindInputIds(const ModelInfo& modelInfo)
 {
-    // Bind inputs
     io_binding.BindInput(modelInfo.inputIdLabel.c_str(), inputIdsTensor);
+}
+void RunInstance::bindPositionIds(const ModelInfo& modelInfo)
+{
     io_binding.BindInput(modelInfo.positionIdLabel.c_str(), positionIdsTensor);
+}
+void RunInstance::bindAttentionMask(const ModelInfo& modelInfo)
+{
     io_binding.BindInput(modelInfo.attentionMaskLabel.c_str(), attentionMaskTensor);
-
+}
+void RunInstance::bindPasts(const ModelInfo& modelInfo)
+{
     for (std::int32_t i = 0; i < modelInfo.num_layer; i++)
     {
         if (i < pastTensors.size())
         io_binding.BindInput(modelInfo.pastLabels[i].c_str(), pastTensors[i]);
     }
 }
-void RunInstance::bindOutputs(const ModelInfo& modelInfo)
-{
-    // Bind outputs
-    io_binding.BindOutput(modelInfo.logitsLabel.c_str(), logitsTensor);
 
+void RunInstance::bindPresents(const ModelInfo& modelInfo)
+{
     for (std::int32_t i = 0; i < modelInfo.num_layer; i++)
     {
         io_binding.BindOutput(modelInfo.presentLabels[i].c_str(), presentTensors[i]);
     }
+}
+void RunInstance::bindLogits(const ModelInfo& modelInfo)
+{
+    io_binding.BindOutput(modelInfo.logitsLabel.c_str(), logitsTensor);
+}
+
+void RunInstance::bindInputs(const ModelInfo& modelInfo)
+{
+    bindInputIds(modelInfo);
+    bindPositionIds(modelInfo);
+    bindAttentionMask(modelInfo);
+    bindPasts(modelInfo);
+}
+void RunInstance::bindOutputs(const ModelInfo& modelInfo)
+{
+    bindLogits(modelInfo);
+    bindPresents(modelInfo);
 }
 void RunInstance::bind(const ModelInfo& modelInfo)
 {
@@ -365,13 +387,10 @@ void MusicGenerator::preGenerate(RunInstance& input)
         input.updatePositionIdsTensor(modelInfo);
         input.updateAttentionMaskTensor(modelInfo);
         
-        input.bindInputs(modelInfo);
-
-        // input.createOutputTensors(modelInfo, input.seqLength);
         input.createLogitsTensor(modelInfo, input.seqLength);
         input.createPresentTensors(modelInfo, input.seqLength);
 
-        input.bindOutputs(modelInfo);
+        input.bind(modelInfo);
     }
 }
 void MusicGenerator::generate(RunInstance& input)
@@ -404,7 +423,7 @@ void MusicGenerator::getNextTokens_greedy(const Ort::Value& logitsTensor, std::v
     // @TODO : optimize with custom search (?)
     
     // Get the last token's logits for each sequence in the batch
-    for(int b = 0; b < batchSize; ++b) {
+    for(int64_t b = 0; b < batchSize; ++b) {
         // Pointer to the logits for the last token
         const float* last_logits = output_data + (b * shape[1] + (shape[1] - 1)) * vocab_size;
         
@@ -428,84 +447,41 @@ void MusicGenerator::getNextTokens(const Ort::Value& logitsTensor, std::vector<R
 
 void RunInstance::copyAndShiftPresentIntoNextPast(const float* presentData, float* pastData, int64_t presentShape[], int64_t pastShape[])
 {
-    // assert((pastShape[3] + 1) == presentShape[3]);
-    // for (int j = 0; j < pastShape[0]; j++)
-    // {
-    //     for (int64_t batch = 0; batch < pastShape[1]; ++batch) 
-    //     {
-    //         for (int64_t head = 0; head < pastShape[2]; ++head) 
-    //         {
-    //             for (int64_t seq = 0; seq < pastShape[3]; ++seq) // Skip first element 
-    //             {
-    //                 int64_t presentSeq = seq+1;
-    //                 int64_t pastSeq = seq;
-    //                 for (int64_t embed = 0; embed < pastShape[4]; ++embed) 
-    //                 { 
-    //                     int64_t presentId = embed 
-    //                                     + presentSeq * presentShape[4] 
-    //                                     + head * presentShape[3] * presentShape[4]
-    //                                     + batch * presentShape[2] * presentShape[3] * presentShape[4]
-    //                                     + j * presentShape[1] * presentShape[2] * presentShape[3] * presentShape[4];
+    int64_t presentId2 = presentShape[4];
+    int64_t presentIdEnd2 = presentShape[3] * presentShape[4];
+    int64_t pastId2 = 0;
 
-    //                     int64_t pastId = embed 
-    //                                     + pastSeq * pastShape[4] 
-    //                                     + head * pastShape[3] * pastShape[4]
-    //                                     + batch * pastShape[2] * pastShape[3] * pastShape[4]
-    //                                     + j * pastShape[1] * pastShape[2] * pastShape[3] * pastShape[4];
+    const int64_t presentOffset = presentShape[3] * presentShape[4];
+    const int64_t pastOffset = pastShape[3] * pastShape[4];
 
-    //                     pastData[pastId] = presentData[presentId];
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
-
+    const int64_t limit = pastShape[0] * pastShape[1] * pastShape[2];
 
     assert((pastShape[3] + 1) == presentShape[3]);
-    for (int j = 0; j < pastShape[0]; j++)
+    for (int64_t i = 0; i < limit; i++)
     {
-        for (int64_t batch = 0; batch < pastShape[1]; ++batch) 
-        {
-            for (int64_t head = 0; head < pastShape[2]; ++head) 
-            {
-                int64_t presentId = 0 
-                                + (0+1) * presentShape[4] 
-                                + head * presentShape[3] * presentShape[4]
-                                + batch * presentShape[2] * presentShape[3] * presentShape[4]
-                                + j * presentShape[1] * presentShape[2] * presentShape[3] * presentShape[4];
+        std::copy(presentData + presentId2, presentData + presentIdEnd2, pastData + pastId2);
 
-                int64_t presentIdEnd = 0
-                                + presentShape[3] * presentShape[4] 
-                                + head * presentShape[3] * presentShape[4]
-                                + batch * presentShape[2] * presentShape[3] * presentShape[4]
-                                + j * presentShape[1] * presentShape[2] * presentShape[3] * presentShape[4];
-
-                int64_t pastId = 0 
-                                + 0 * pastShape[4] 
-                                + head * pastShape[3] * pastShape[4]
-                                + batch * pastShape[2] * pastShape[3] * pastShape[4]
-                                + j * pastShape[1] * pastShape[2] * pastShape[3] * pastShape[4];
-
-                std::copy(presentData + presentId, presentData + presentIdEnd, pastData + pastId);
-            }
-        }
+        presentId2 += presentOffset;
+        presentIdEnd2 += presentOffset;
+        pastId2 += pastOffset;
     }
 }
 
 void MusicGenerator::postGenerate(RunInstance& input)
 {
-    std::vector<RunInstance::DataType> nextTokens(input.getNbBatches());
-    getNextTokens(input.logitsTensor, nextTokens);
+    std::int64_t nbBatches = input.getNbBatches(); 
+
+    input.nextTokens.resize(nbBatches);
+    getNextTokens(input.logitsTensor, input.nextTokens);
 
     // Update next inputs
-    for (int64_t b = 0; b < input.getNbBatches(); ++b) 
+    for (int64_t b = 0; b < nbBatches; ++b) 
     {
         DataType lastElem = input.batches[b]->positionIds.back();
         input.batches[b]->positionIds.clear();
         input.batches[b]->positionIds.push_back(lastElem + 1); // @TODO : Modulo? or already handled by the model?
 
-        input.batches[b]->lastGeneratedToken = nextTokens[b];
+        input.batches[b]->lastGeneratedToken = input.nextTokens[b];
     }
 
     // // Update has_eos flags
@@ -533,6 +509,11 @@ void MusicGenerator::postGenerate(RunInstance& input)
         input.updateAttentionMaskTensorCache(modelInfo, 1);
 
         input.createLogitsTensor(modelInfo, 1);
+
+        input.bindInputIds(modelInfo);
+        input.bindPositionIds(modelInfo);
+        input.bindAttentionMask(modelInfo);
+        input.bindLogits(modelInfo);
     }
 
     if (input.seqLength < input.maxInputLength)
@@ -541,6 +522,9 @@ void MusicGenerator::postGenerate(RunInstance& input)
 
         input.pastTensors = std::move(input.presentTensors);
         input.createPresentTensors(modelInfo, input.seqLength);
+
+        input.bindPasts(modelInfo);
+        input.bindPresents(modelInfo);
     }
     else
     {
@@ -553,17 +537,17 @@ void MusicGenerator::postGenerate(RunInstance& input)
             std::swap(input.presentTensors, input.pastTensors);
             input.createPresentTensors(modelInfo, input.maxInputLength-1);
             std::swap(input.presentTensors, input.pastTensors);
+            input.bindPasts(modelInfo);
         }
 
         // remove the oldest "dim" of input.pastTensors when reaching 512 to prevent overloading  
         // Copy previous "past" values
+        std::int64_t presentShape[] = {2, nbBatches, modelInfo.num_attention_heads, input.maxInputLength, modelInfo.hidden_size / modelInfo.num_attention_heads};
+        std::int64_t pastShape[] = {2, nbBatches, modelInfo.num_attention_heads, input.maxInputLength-1, modelInfo.hidden_size / modelInfo.num_attention_heads};
         for (size_t i = 0; i < input.presentTensors.size(); i++)
         {
             const float* presentData = input.presentTensors[i].GetTensorData<float>();
             float* pastData = input.pastTensors[i].GetTensorMutableData<float>();
-
-            std::int64_t presentShape[] = {2, input.getNbBatches(), modelInfo.num_attention_heads, input.maxInputLength, modelInfo.hidden_size / modelInfo.num_attention_heads};
-            std::int64_t pastShape[] = {2, input.getNbBatches(), modelInfo.num_attention_heads, input.maxInputLength-1, modelInfo.hidden_size / modelInfo.num_attention_heads};
 
             // Ensure sizes are correct
             #ifndef NDEBUG
@@ -589,10 +573,8 @@ void MusicGenerator::postGenerate(RunInstance& input)
         }
     }
 
-    input.updateInputIdsTensorCache(modelInfo, nextTokens);
+    input.updateInputIdsTensorCache(modelInfo, input.nextTokens);
     input.updatePositionIdsTensor(modelInfo); // @TODO : Cache version?
-
-    input.bind(modelInfo);
 
     input.subsequentGenerationIndex += 1;
 }

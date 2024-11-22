@@ -1,7 +1,7 @@
 #include "musicGenerator.hpp"
 
 #include <sstream>
-// #include "note.h"
+#include "note.h"
 
 // #define PRINT_TENSOR_UPDATE
 // #define PRINT_TENSOR_SHAPE
@@ -374,73 +374,73 @@ void MusicGenerator::generate(RunInstance& input)
     }
 }
 
-// void MusicGenerator::getNextTokens_greedy(const SearchArgs& args)
-// {    
-//     // Get the last token's logits for each sequence in the batch
-//     for(int64_t b = 0; b < args.nbBatches; ++b) {
-//         // Pointer to the logits for the last token
-//         const float* last_logits = args.logitsTensor + (b * args.nbSequences + (args.nbSequences - 1)) * args.vocabSize;
-        
-//         // Find the index with the maximum logit
-//         float max_logit = last_logits[0];
-//         int max_index = 0;
-//         for(int token = 1; token < args.vocabSize; token++) {
-//             if(last_logits[token] > max_logit) {
-//                 max_logit = last_logits[token];
-//                 max_index = token;
-//             }
-//         }
-//         args.outNextTokens[b] = max_index;
-//     }
-// }
-
-void MusicGenerator::getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
-{
-    const Ort::Value& output_tensor = logitsTensor; // logits
-    const float* output_data = output_tensor.GetTensorData<float>();
-    Ort::TensorTypeAndShapeInfo tensorInfo = output_tensor.GetTensorTypeAndShapeInfo();
-    std::vector<int64_t> shape = tensorInfo.GetShape();
-
-    int64_t batchSize = shape[0];
-    int64_t vocab_size = shape[2];
-
-    // Greedy
-    // @TODO : optimize with custom search (?)
-    
+void MusicGenerator::getNextTokens_greedy(const SearchArgs& args)
+{    
     // Get the last token's logits for each sequence in the batch
-    for(int64_t b = 0; b < batchSize; ++b) {
+    for(int64_t b = 0; b < args.nbBatches; ++b) {
         // Pointer to the logits for the last token
-        const float* last_logits = output_data + (b * shape[1] + (shape[1] - 1)) * vocab_size;
+        const float* last_logits = args.logitsTensor + (b * args.nbSequences + (args.nbSequences - 1)) * args.vocabSize;
         
         // Find the index with the maximum logit
         float max_logit = last_logits[0];
         int max_index = 0;
-        for(int v = 1; v < vocab_size; ++v) {
-            if(last_logits[v] > max_logit) {
-                max_logit = last_logits[v];
-                max_index = v;
+        for(int token = 1; token < args.vocabSize; token++) {
+            if(last_logits[token] > max_logit) {
+                max_logit = last_logits[token];
+                max_index = token;
             }
         }
-        outNextTokens[b] = max_index;
+        args.outNextTokens[b] = max_index;
     }
 }
 
+// void MusicGenerator::getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
+// {
+//     const Ort::Value& output_tensor = logitsTensor; // logits
+//     const float* output_data = output_tensor.GetTensorData<float>();
+//     Ort::TensorTypeAndShapeInfo tensorInfo = output_tensor.GetTensorTypeAndShapeInfo();
+//     std::vector<int64_t> shape = tensorInfo.GetShape();
+
+//     int64_t batchSize = shape[0];
+//     int64_t vocab_size = shape[2];
+
+//     // Greedy
+//     // @TODO : optimize with custom search (?)
+    
+//     // Get the last token's logits for each sequence in the batch
+//     for(int64_t b = 0; b < batchSize; ++b) {
+//         // Pointer to the logits for the last token
+//         const float* last_logits = output_data + (b * shape[1] + (shape[1] - 1)) * vocab_size;
+        
+//         // Find the index with the maximum logit
+//         float max_logit = last_logits[0];
+//         int max_index = 0;
+//         for(int v = 1; v < vocab_size; ++v) {
+//             if(last_logits[v] > max_logit) {
+//                 max_logit = last_logits[v];
+//                 max_index = v;
+//             }
+//         }
+//         outNextTokens[b] = max_index;
+//     }
+// }
+
 void MusicGenerator::getNextTokens(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
 {
-    getNextTokens_greedy(logitsTensor, outNextTokens);
+    // getNextTokens_greedy(logitsTensor, outNextTokens);
 
 
 
-    // Ort::TensorTypeAndShapeInfo tensorInfo = logitsTensor.GetTensorTypeAndShapeInfo();
-    // assert(tensorInfo.GetDimensionsCount() == 3);
-    // std::vector<int64_t> shape = tensorInfo.GetShape();
-    // SearchArgs args;
-    // args.logitsTensor = logitsTensor.GetTensorData<float>();
-    // args.outNextTokens = outNextTokens.data();
-    // args.nbBatches = shape[0];
-    // args.nbSequences = shape[1];
-    // args.vocabSize = shape[2];
-    // getNextTokens_greedy(args);
+    Ort::TensorTypeAndShapeInfo tensorInfo = logitsTensor.GetTensorTypeAndShapeInfo();
+    assert(tensorInfo.GetDimensionsCount() == 3);
+    std::vector<int64_t> shape = tensorInfo.GetShape();
+    SearchArgs args;
+    args.logitsTensor = logitsTensor.GetTensorData<float>();
+    args.outNextTokens = outNextTokens.data();
+    args.nbBatches = shape[0];
+    args.nbSequences = shape[1];
+    args.vocabSize = shape[2];
+    getNextTokens_greedy(args);
 }
 
 void RunInstance::copyAndShiftPresentIntoNextPast(const float* presentData, float* pastData, int64_t presentShape[], int64_t pastShape[])

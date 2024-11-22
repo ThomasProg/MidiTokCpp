@@ -7,6 +7,42 @@
 #include "midiTokenizer.hpp"
 #include "fwd.h"
 
+template<typename T>
+void PrintTensorContent(const Ort::Value& value) {
+    // Get the tensor's shape
+    auto shape = value.GetTensorTypeAndShapeInfo().GetShape();
+    
+    // Get the number of elements in the tensor
+    size_t num_elements = 1;
+    for (size_t dim : shape) {
+        num_elements *= dim;
+    }
+
+    // Get the tensor's data (assuming it's of type float)
+    const T* tensor_data = value.GetTensorData<T>();
+
+    // Print the shape
+    std::cout << "Tensor shape: [";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        std::cout << shape[i];
+        if (i < shape.size() - 1) {
+            std::cout << ", ";
+        }
+    }
+    std::cout << "]\n";
+
+    // Print the tensor data
+    std::cout << "Tensor data: ";
+    for (size_t i = 0; i < num_elements; ++i) {
+        std::cout << tensor_data[i] << " ";
+        if ((i + 1) % 10 == 0) {  // Print 10 elements per line for better readability
+            std::cout << "\n";
+        }
+    }
+    std::cout << "\n";
+}
+
+
 struct Batch
 {
 public:
@@ -30,6 +66,8 @@ public:
 };
 
 struct ModelInfo;
+
+std::int64_t computeMultiDimIdx(std::int64_t* shape, std::int64_t* indices);
 
 struct RunInstance
 {
@@ -83,9 +121,12 @@ public:
     void createLogitsTensor(const ModelInfo& info, std::int64_t seqLength);
     void createPastTensors(const ModelInfo& info, std::int64_t seqLength);
 
+    void getPastTensorShape(const ModelInfo& modelInfo, std::array<std::int64_t, 5>& outPastShape) const;
+    void getPresentTensorShape(const ModelInfo& modelInfo, std::array<std::int64_t, 5>& outPresentShape) const;
+
     // Bind Inputs
     void bindInputIds(const ModelInfo& modelInfo);
-    void bindPositionIds(const ModelInfo& modelInfo);
+    void bindPositionIds(const ModelInfo& modelIngetfo);
     void bindAttentionMask(const ModelInfo& modelInfo);
     void bindPasts(const ModelInfo& modelInfo);
 
@@ -141,7 +182,8 @@ public:
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);
     void loadOnnxModel(const Ort::Env& env, const std::string& modelPath);
 
-    void getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
+    static void getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
+    // static void getNextTokens_greedy(const SearchArgs& args);
     void getNextTokens(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
 
     void preGenerate(RunInstance& input);

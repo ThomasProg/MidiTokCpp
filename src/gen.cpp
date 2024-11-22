@@ -7,6 +7,11 @@
 
 extern "C" 
 {
+std::int64_t computeMultiDimIndex(std::int64_t* shape, std::int64_t* indices)
+{
+    return computeMultiDimIdx(shape, indices);
+}
+
 EnvHandle createEnv(bool useLogging)
 {
     if (useLogging)
@@ -223,12 +228,6 @@ void runInstance_reset(RunInstanceHandle runInstance)
 
 const float* runInstance_getPastTensor(RunInstanceHandle runInstance, std::int32_t index)
 {
-    // Ort::TensorTypeAndShapeInfo tensorInfo = runInstance->pastTensors[index].GetTensorTypeAndShapeInfo();
-    // std::vector<std::int64_t> shape = tensorInfo.GetShape();
-
-    // *nbDims = shape.size();
-
-
     return runInstance->pastTensors[index].GetTensorData<float>();
 }
 
@@ -237,6 +236,16 @@ const float* runInstance_getPresentTensor(RunInstanceHandle runInstance, std::in
     return runInstance->presentTensors[index].GetTensorData<float>();
 }
 
+void runInstance_getPresentTensorShape(RunInstanceHandle runInstance, MusicGeneratorHandle generator, std::int64_t* outShape)
+{
+    std::array<std::int64_t, 5>& outPresent = * (std::array<std::int64_t, 5>*) outShape;
+    runInstance->getPresentTensorShape(generator->modelInfo, outPresent);
+}
+void runInstance_getPastTensorShape(RunInstanceHandle runInstance, MusicGeneratorHandle generator, std::int64_t* outShape)
+{
+    std::array<std::int64_t, 5>& outPastShape = * (std::array<std::int64_t, 5>*) outShape;
+    runInstance->getPresentTensorShape(generator->modelInfo, outPastShape);
+}
 
 bool isBarNone(MidiTokenizerHandle tokenizer, std::int32_t token)
 {

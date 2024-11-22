@@ -1,6 +1,7 @@
 #include "musicGenerator.hpp"
 
 #include <sstream>
+// #include "note.h"
 
 // #define PRINT_TENSOR_UPDATE
 // #define PRINT_TENSOR_SHAPE
@@ -335,41 +336,6 @@ void RunInstance::reset()
     seqLength = 0;
 }
 
-template<typename T>
-void PrintTensorContent(const Ort::Value& value) {
-    // Get the tensor's shape
-    auto shape = value.GetTensorTypeAndShapeInfo().GetShape();
-    
-    // Get the number of elements in the tensor
-    size_t num_elements = 1;
-    for (size_t dim : shape) {
-        num_elements *= dim;
-    }
-
-    // Get the tensor's data (assuming it's of type float)
-    const T* tensor_data = value.GetTensorData<T>();
-
-    // Print the shape
-    std::cout << "Tensor shape: [";
-    for (size_t i = 0; i < shape.size(); ++i) {
-        std::cout << shape[i];
-        if (i < shape.size() - 1) {
-            std::cout << ", ";
-        }
-    }
-    std::cout << "]\n";
-
-    // Print the tensor data
-    std::cout << "Tensor data: ";
-    for (size_t i = 0; i < num_elements; ++i) {
-        std::cout << tensor_data[i] << " ";
-        if ((i + 1) % 10 == 0) {  // Print 10 elements per line for better readability
-            std::cout << "\n";
-        }
-    }
-    std::cout << "\n";
-}
-
 
 void MusicGenerator::preGenerate(RunInstance& input)
 {
@@ -408,6 +374,26 @@ void MusicGenerator::generate(RunInstance& input)
     }
 }
 
+// void MusicGenerator::getNextTokens_greedy(const SearchArgs& args)
+// {    
+//     // Get the last token's logits for each sequence in the batch
+//     for(int64_t b = 0; b < args.nbBatches; ++b) {
+//         // Pointer to the logits for the last token
+//         const float* last_logits = args.logitsTensor + (b * args.nbSequences + (args.nbSequences - 1)) * args.vocabSize;
+        
+//         // Find the index with the maximum logit
+//         float max_logit = last_logits[0];
+//         int max_index = 0;
+//         for(int token = 1; token < args.vocabSize; token++) {
+//             if(last_logits[token] > max_logit) {
+//                 max_logit = last_logits[token];
+//                 max_index = token;
+//             }
+//         }
+//         args.outNextTokens[b] = max_index;
+//     }
+// }
+
 void MusicGenerator::getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
 {
     const Ort::Value& output_tensor = logitsTensor; // logits
@@ -417,7 +403,6 @@ void MusicGenerator::getNextTokens_greedy(const Ort::Value& logitsTensor, std::v
 
     int64_t batchSize = shape[0];
     int64_t vocab_size = shape[2];
-
 
     // Greedy
     // @TODO : optimize with custom search (?)
@@ -443,6 +428,19 @@ void MusicGenerator::getNextTokens_greedy(const Ort::Value& logitsTensor, std::v
 void MusicGenerator::getNextTokens(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
 {
     getNextTokens_greedy(logitsTensor, outNextTokens);
+
+
+
+    // Ort::TensorTypeAndShapeInfo tensorInfo = logitsTensor.GetTensorTypeAndShapeInfo();
+    // assert(tensorInfo.GetDimensionsCount() == 3);
+    // std::vector<int64_t> shape = tensorInfo.GetShape();
+    // SearchArgs args;
+    // args.logitsTensor = logitsTensor.GetTensorData<float>();
+    // args.outNextTokens = outNextTokens.data();
+    // args.nbBatches = shape[0];
+    // args.nbSequences = shape[1];
+    // args.vocabSize = shape[2];
+    // getNextTokens_greedy(args);
 }
 
 void RunInstance::copyAndShiftPresentIntoNextPast(const float* presentData, float* pastData, int64_t presentShape[], int64_t pastShape[])
@@ -465,6 +463,24 @@ void RunInstance::copyAndShiftPresentIntoNextPast(const float* presentData, floa
         presentIdEnd2 += presentOffset;
         pastId2 += pastOffset;
     }
+}
+
+void RunInstance::getPastTensorShape(const ModelInfo& modelInfo, std::array<std::int64_t, 5>& outPastShape) const
+{
+    outPastShape = {2, getNbBatches(), modelInfo.num_attention_heads, maxInputLength-1, modelInfo.hidden_size / modelInfo.num_attention_heads};
+}
+void RunInstance::getPresentTensorShape(const ModelInfo& modelInfo, std::array<std::int64_t, 5>& outPresentShape) const
+{
+    outPresentShape = {2, getNbBatches(), modelInfo.num_attention_heads, seqLength, modelInfo.hidden_size / modelInfo.num_attention_heads};
+}
+
+std::int64_t computeMultiDimIdx(std::int64_t* shape, std::int64_t* indices)
+{
+    return indices[4]
+        + indices[3] * shape[4]
+        + indices[2] * shape[4] * shape[3]
+        + indices[1] * shape[4] * shape[3] * shape[2]
+        + indices[0] * shape[4] * shape[3] * shape[2] * shape[1];
 }
 
 void MusicGenerator::postGenerate(RunInstance& input)
@@ -542,8 +558,13 @@ void MusicGenerator::postGenerate(RunInstance& input)
 
         // remove the oldest "dim" of input.pastTensors when reaching 512 to prevent overloading  
         // Copy previous "past" values
-        std::int64_t presentShape[] = {2, nbBatches, modelInfo.num_attention_heads, input.maxInputLength, modelInfo.hidden_size / modelInfo.num_attention_heads};
-        std::int64_t pastShape[] = {2, nbBatches, modelInfo.num_attention_heads, input.maxInputLength-1, modelInfo.hidden_size / modelInfo.num_attention_heads};
+
+        std::array<std::int64_t, 5> pastShape;
+        input.getPastTensorShape(modelInfo, pastShape);
+
+        std::array<std::int64_t, 5> presentShape;
+        input.getPresentTensorShape(modelInfo, presentShape);
+
         for (size_t i = 0; i < input.presentTensors.size(); i++)
         {
             const float* presentData = input.presentTensors[i].GetTensorData<float>();
@@ -569,7 +590,7 @@ void MusicGenerator::postGenerate(RunInstance& input)
 
             #endif
             
-            input.copyAndShiftPresentIntoNextPast(presentData, pastData, presentShape, pastShape);
+            input.copyAndShiftPresentIntoNextPast(presentData, pastData, presentShape.data(), pastShape.data());
         }
     }
 
@@ -602,11 +623,6 @@ void RunInstance::printInputTensors()
     PrintTensorContent<int32_t>(positionIdsTensor);
     PrintTensorContent<int32_t>(attentionMaskTensor);
 
-    if (!presentTensors.empty())
-    {
-        PrintTensorContent<int32_t>(presentTensors[0]);
-    }
-
     if (!pastTensors.empty())
     {
         PrintTensorContent<int32_t>(pastTensors[0]);
@@ -616,18 +632,11 @@ void RunInstance::printInputTensors()
 void RunInstance::printOutputTensors()
 {
     std::cout << "Outputs:" << std::endl;
-    PrintTensorContent<int32_t>(inputIdsTensor);
-    PrintTensorContent<int32_t>(positionIdsTensor);
-    PrintTensorContent<int32_t>(attentionMaskTensor);
+    PrintTensorContent<int32_t>(logitsTensor);
 
     if (!presentTensors.empty())
     {
         PrintTensorContent<int32_t>(presentTensors[0]);
-    }
-
-    if (!pastTensors.empty())
-    {
-        PrintTensorContent<int32_t>(pastTensors[0]);
     }
 }
 

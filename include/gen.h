@@ -3,6 +3,11 @@
 #include "fwd.h"
 #include "note.h"
 
+extern "C"
+{
+    API_EXPORT std::int64_t computeMultiDimIndex(std::int64_t* shape, std::int64_t* indices);
+}
+
 // Env
 extern "C" 
 {
@@ -78,6 +83,9 @@ extern "C"
     API_EXPORT void runInstance_reset(RunInstanceHandle runInstance);
     API_EXPORT const float* runInstance_getPastTensor(RunInstanceHandle runInstance, std::int32_t index);
     API_EXPORT const float* runInstance_getPresentTensor(RunInstanceHandle runInstance, std::int32_t index);
+
+    API_EXPORT void runInstance_getPresentTensorShape(RunInstanceHandle runInstance, MusicGeneratorHandle generator, std::int64_t* outShape);
+    API_EXPORT void runInstance_getPastTensorShape(RunInstanceHandle runInstance, MusicGeneratorHandle generator, std::int64_t* outShape);
 }
 
 // Tokenizer

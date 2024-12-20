@@ -92,6 +92,7 @@ void testComp()
 	// tokenizer_decodeToken(tok, 26, &decodedTokens, &nbDecodedTokens);
 	tokenizer_decodeToken(tok, 40, &decodedTokens, &nbDecodedTokens);
 
+	std::cout << "decoding tokens" << std::endl;
 	for (std::int32_t token = 1; token < 30000; token++)
 	{
 		float added = 0.0;
@@ -112,7 +113,7 @@ void testComp()
 
 
 
-
+	std::cout << "generating and comparing" << std::endl;
 
 	std::vector<int32_t> encodedTokensVec;
 	for (int i = 0; i < 1000; i++)
@@ -132,8 +133,9 @@ void testComp()
 		// generator_generateNextToken(generator, runInstance);
 		generator_preGenerate(generator, runInstance);
 		generator_preGenerate(generator, runInstanceForced);
-		generator_generate(generator, runInstance);
-		generator_generate(generator, runInstanceForced);
+		const char* errorMsg;
+		generator_generate(generator, runInstance, &errorMsg);
+		generator_generate(generator, runInstanceForced, &errorMsg);
 
 
 
@@ -251,8 +253,8 @@ void testComp()
 
 int main()
 {
-	testComp();
-	return 0;
+	//testComp();
+	//return 0;
 
 	std::cout << "Workspace path : " << WORKSPACE_PATH << std::endl;
 
@@ -289,7 +291,7 @@ int main()
 	}
 
 	std::vector<int32_t> encodedTokensVec;
-	for (int i = 0; i < 1000; i++)
+	for (int i = 0; i < 10000; i++)
 	{
 		if (forceUpdate)
 		{
@@ -306,7 +308,8 @@ int main()
 
 		// generator_generateNextToken(generator, runInstance);
 		generator_preGenerate(generator, runInstance);
-		generator_generate(generator, runInstance);
+		const char* errorMsg;
+		generator_generate(generator, runInstance, &errorMsg);
 
 		const float* presentTensor = runInstance_getPresentTensor(runInstance, 0);
 
@@ -315,6 +318,8 @@ int main()
 		int32_t newToken = batch_getLastGeneratedToken(batch);
 		encodedTokensVec.push_back(newToken);
 		inputIds.push_back(newToken);
+
+		std::cout << i << '\r';
 	}
 
 	// DataType* encodedTokens = nullptr; 

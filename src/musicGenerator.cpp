@@ -237,7 +237,7 @@ void RunInstance::updatePositionIdsTensor(const struct ModelInfo& info)
     {
         for (std::size_t j = 0; j < batch->positionIds.size(); j++)
         {
-            data[i] = batch->positionIds[j];
+            data[i] = batch->positionIds[j] % info.nbMaxPositions;
             i++;
         }
     }
@@ -365,18 +365,22 @@ void MusicGenerator::preGenerate(RunInstance& input)
         input.bind(modelInfo);
     }
 }
-bool MusicGenerator::generate(RunInstance& input)
+bool MusicGenerator::generate(RunInstance& input, const char*& outError)
 {
     try 
     {
         // std::cout << "=============" << std::endl;
         session->Run(Ort::RunOptions{nullptr}, input.io_binding);
+        outError = nullptr;
         return true;
     }
     catch(const Ort::Exception& e)
     {
-        std::cout << "Error occurred: " << e.what() << std::endl;           // Error message
-        std::cout << "Error code: " << e.GetOrtErrorCode() << std::endl;    // Error code
+        std::string errorMsg;
+        errorMsg += "Error occurred: " + std::string(e.what());
+        errorMsg += "Error code: " + std::to_string(e.GetOrtErrorCode());
+        std::cout << errorMsg << std::endl;
+        outError = errorMsg.c_str();
         return false;
     }
 }
@@ -706,7 +710,8 @@ void MusicGenerator::generateNextToken(RunInstance& input)
 {
     preGenerate(input);
 
-    generate(input);
+    const char* errorMsg;
+    generate(input, errorMsg);
 
     postGenerate(input);
 }

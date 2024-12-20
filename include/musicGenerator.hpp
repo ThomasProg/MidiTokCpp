@@ -202,7 +202,8 @@ public:
     void getNextTokens(RunInstance& runInstance, const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
 
     void preGenerate(RunInstance& input);
-    bool generate(RunInstance& input);
+    // outError is alloced with new(), and can leak
+    bool generate(RunInstance& input, const char*& outError);
     void postGenerate(RunInstance& input);
 
     // Generate the next token given the input.

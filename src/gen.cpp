@@ -61,10 +61,10 @@ void generator_preGenerate(MusicGeneratorHandle generator, RunInstanceHandle run
     generator->preGenerate(*runInstance);   
 }
 
-bool generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
+bool generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance, const char** outError)
 {
-    assert(generator != nullptr && runInstance != nullptr);
-    return generator->generate(*runInstance);
+    assert(generator != nullptr && runInstance != nullptr && outError != nullptr);
+    return generator->generate(*runInstance, *outError);
 }
 
 void generator_postGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)

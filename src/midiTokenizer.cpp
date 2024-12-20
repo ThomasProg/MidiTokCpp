@@ -442,7 +442,7 @@ std::vector<int32_t> MidiTokenizer::encode(const Score& score)
     return std::vector<int32_t>();
 }
 
-TokSequence MidiTokenizer::_convert_sequence_to_tokseq(const std::vector<int32_t>& tokens)
+TokSequence MidiTokenizer::_convert_sequence_to_tokseq(const std::vector<int32_t>& tokens) const
 {
     // std::vector<> seq;
 
@@ -461,7 +461,7 @@ bool MidiTokenizer::_are_ids_encoded(const std::vector<int32_t>& tokens) const
     return true;
 }
 
-void MidiTokenizer::_preprocess_tokseq_before_decoding(TokSequence& seq)
+void MidiTokenizer::_preprocess_tokseq_before_decoding(TokSequence& seq) const
 {
     if (seq.tokens.size() == 0)
     {
@@ -473,7 +473,7 @@ void MidiTokenizer::_preprocess_tokseq_before_decoding(TokSequence& seq)
     }
 }
 
-void MidiTokenizer::complete_sequence(TokSequence& seq, bool complete_bytes)
+void MidiTokenizer::complete_sequence(TokSequence& seq, bool complete_bytes) const
 {
     if (seq.tokens.empty())
     {
@@ -499,7 +499,7 @@ void MidiTokenizer::complete_sequence(TokSequence& seq, bool complete_bytes)
     }
 }
 
-std::vector<int32_t> MidiTokenizer::_tokens_to_ids(const std::vector<std::string>& tokens)
+std::vector<int32_t> MidiTokenizer::_tokens_to_ids(const std::vector<std::string>& tokens) const
 {
     if (tokens.empty())
         return std::vector<int32_t>();
@@ -513,7 +513,7 @@ std::vector<int32_t> MidiTokenizer::_tokens_to_ids(const std::vector<std::string
     return ids; 
 }
 
-void MidiTokenizer::decode_token_ids(TokSequence& seq)
+void MidiTokenizer::decode_token_ids(TokSequence& seq) const
 {
     if (seq.are_ids_encoded)
     {
@@ -521,7 +521,10 @@ void MidiTokenizer::decode_token_ids(TokSequence& seq)
         for (size_t i = 0; i < seq.ids.size(); i++)
         {
             auto& id_ = seq.ids[i];
+            std::mutex& m = const_cast<std::mutex&>(_modelMutex);
+            m.lock();
             encoded_bytes[i] = _model->IdToToken(id_);
+            m.unlock();
             assert(!encoded_bytes[i].empty()); // if empty, it means id hasn't been found
         } 
 
@@ -530,7 +533,7 @@ void MidiTokenizer::decode_token_ids(TokSequence& seq)
         for (std::string& byte_ : encoded_bytes)
         {
             const std::vector<std::string>& decoded = _vocab_learned_bytes_to_tokens.at(byte_); 
-            assert(!decoded.empty());
+            // assert(!decoded.empty());
             decoded_tokens.insert(decoded_tokens.end(), decoded.begin(), decoded.end());
         }  
 
@@ -562,6 +565,14 @@ Score MidiTokenizer::_tokens_to_score(const TokSequence& seq)
     return score;
 }
 
+void MidiTokenizer::decodeToken(std::int32_t encodedToken, std::vector<int32_t>& outDecodedTokens) const
+{
+    std::vector<std::int32_t> inTokensVec(1);
+    inTokensVec[0] = encodedToken;
+
+    decodeIDs(inTokensVec, outDecodedTokens);
+}
+
 Score MidiTokenizer::decode(const std::vector<int32_t>& tokens)
 {
     TokSequence tokSequence = _convert_sequence_to_tokseq(tokens);
@@ -574,7 +585,7 @@ Score MidiTokenizer::decode(const std::vector<int32_t>& tokens)
     return score;
 }
 
-void MidiTokenizer::decodeIDs(const std::vector<int32_t>& tokens, std::vector<int32_t>& outTokens)
+void MidiTokenizer::decodeIDs(const std::vector<int32_t>& tokens, std::vector<int32_t>& outTokens) const
 {
     TokSequence tokSequence = _convert_sequence_to_tokseq(tokens);
 

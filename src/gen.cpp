@@ -61,10 +61,10 @@ void generator_preGenerate(MusicGeneratorHandle generator, RunInstanceHandle run
     generator->preGenerate(*runInstance);   
 }
 
-void generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
+bool generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
 {
     assert(generator != nullptr && runInstance != nullptr);
-    generator->generate(*runInstance);
+    return generator->generate(*runInstance);
 }
 
 void generator_postGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
@@ -85,6 +85,19 @@ void generator_setConfig(MusicGeneratorHandle generator, int64_t num_attention_h
 RunInstance* generator_createRunInstance(MusicGeneratorHandle generator)
 {
     return generator->createRunInstance();
+}
+
+void generator_getNextTokens_greedyFiltered(const SearchArgs& args, bool (*filter)(std::int32_t token, void* data), void* data)
+{
+    MusicGenerator::getNextTokens_greedyFiltered(args, filter, data);
+}
+void generator_getNextTokens_greedyPreFiltered(const SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken)
+{
+    MusicGenerator::getNextTokens_greedyPreFiltered(args, availableTokens, nbAvailableToken);
+}
+void generator_getNextTokens_greedy(const SearchArgs& args)
+{
+    MusicGenerator::getNextTokens_greedy(args);
 }
 
 RedirectorHandle createRedirector()
@@ -142,6 +155,30 @@ void tokenizer_decodeIDs(MidiTokenizerHandle tokenizer, const std::int32_t* inpu
 void tokenizer_decodeIDs_free(std::int32_t* outputIDs)
 {
     delete[] outputIDs;
+}
+
+void tokenizer_decodeToken(MidiTokenizerHandle tokenizer, std::int32_t encodedToken, std::int32_t** outDecodedTokens, std::int32_t* outNbDecodedTokens)
+{
+    std::vector<int32_t> decodedTokens(10);
+    try 
+    {
+        tokenizer->decodeToken(encodedToken, decodedTokens);
+    }
+    catch (const std::exception& e)
+    {
+        *outNbDecodedTokens = 0;
+        *outDecodedTokens = nullptr;
+        return;
+    }
+
+    *outNbDecodedTokens = static_cast<std::int32_t>(decodedTokens.size());
+    *outDecodedTokens = new std::int32_t[*outNbDecodedTokens]();
+    // *outDecodedTokens = decodedTokens.data();
+
+    for (std::int32_t i = 0; i < decodedTokens.size(); i++)
+    {
+        (*outDecodedTokens)[i] = decodedTokens[i];
+    }
 }
 
 
@@ -245,6 +282,15 @@ void runInstance_getPastTensorShape(RunInstanceHandle runInstance, MusicGenerato
 {
     std::array<std::int64_t, 5>& outPastShape = * (std::array<std::int64_t, 5>*) outShape;
     runInstance->getPresentTensorShape(generator->modelInfo, outPastShape);
+}
+
+void runInstance_setSearchStrategyData(RunInstanceHandle runInstance, void* searchStrategyData)
+{
+    runInstance->searchStrategyData = searchStrategyData;
+}
+void runInstance_setSearchStrategy(RunInstanceHandle runInstance, TSearchStrategy searchStrategy)
+{
+    runInstance->searchStrategy = searchStrategy;
 }
 
 bool isBarNone(MidiTokenizerHandle tokenizer, std::int32_t token)

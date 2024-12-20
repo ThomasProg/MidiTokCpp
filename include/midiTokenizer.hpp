@@ -13,6 +13,7 @@
 #include "tokenizers_cpp.h"
 
 #include "tokenSequence.h"
+#include <mutex>
 
 using json = nlohmann::json;
 
@@ -40,6 +41,7 @@ protected:
 
     // Fast tokenizer model backed with 🤗tokenizers
     std::unique_ptr<tokenizers::Tokenizer> _model;
+    std::mutex _modelMutex;
 
 
     // TODO / TO LOAD
@@ -50,16 +52,16 @@ private:
     void __create_vocab_learned_bytes_to_tokens();
 
 protected:
-    TokSequence _convert_sequence_to_tokseq(const std::vector<int32_t>& tokens);
+    TokSequence _convert_sequence_to_tokseq(const std::vector<int32_t>& tokens) const;
     void loadFromJson(const std::string& filename);
     bool _are_ids_encoded(const std::vector<int32_t>& tokens) const;
-    void _preprocess_tokseq_before_decoding(TokSequence& seq);
+    void _preprocess_tokseq_before_decoding(TokSequence& seq) const;
 
     // Convert a list of tokens (str) into their ids format (int).
 
     // :param tokens: list of tokens (str) to convert.
     // :return: list of corresponding ids (int).
-    std::vector<int32_t> _tokens_to_ids(const std::vector<std::string>& tokens);
+    std::vector<int32_t> _tokens_to_ids(const std::vector<std::string>& tokens) const;
 
 
 
@@ -90,11 +92,14 @@ public:
             
     }
 
+    // Decode a single token
+    void decodeToken(std::int32_t encodedToken, std::vector<int32_t>& outDecodedTokens) const;
+
     std::vector<int32_t> encode(const Score& score);
     Score decode(const std::vector<int32_t>& tokens);
 
     // custom
-    void decodeIDs(const std::vector<int32_t>& tokens, std::vector<int32_t>& outTokens);
+    void decodeIDs(const std::vector<int32_t>& tokens, std::vector<int32_t>& outTokens) const;
 
     // @TODO : optimize
     std::function<int(const std::string&)> vocab = [this](const std::string& v) -> int
@@ -115,7 +120,7 @@ public:
     // :class:`miditok.TokSequence`.
 
     // :param seq: token sequence to decompose.
-    void decode_token_ids(TokSequence& seq);
+    void decode_token_ids(TokSequence& seq) const;
 
 
 
@@ -131,11 +136,14 @@ public:
     //     attribute defined.
     // :param complete_bytes: will complete the bytes form of each token. This is only
     //     applicable if the tokenizer has been trained.
-    void complete_sequence(TokSequence& seq, bool complete_bytes = false);
+    void complete_sequence(TokSequence& seq, bool complete_bytes = false) const;
 
     bool is_trained() const;
 
-
+    std::int32_t getNbTokens() const
+    {
+        return static_cast<std::int32_t>(_vocab_base.size());
+    }
 
 public:
     // Optimized conversions

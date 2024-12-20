@@ -102,6 +102,19 @@ struct RunInstance
     std::vector<RunInstance::DataType> nextTokens;
 
 public:
+    void* searchStrategyData = nullptr;
+    using TSearchStrategy = void (*)(const struct SearchArgs& args, void* searchStrategyData);
+
+    // static inline constexpr TSearchStrategy defaultSearchStrategy = [](const struct SearchArgs& args, void* searchStrategyData) { return MusicGenerator::getNextTokens_greedy(args); };
+    TSearchStrategy searchStrategy = nullptr;//defaultSearchStrategy;
+
+public:
+    RunInstance()
+    {
+        resetSearchStrategy();
+    }
+    void resetSearchStrategy();
+
     void updateInputIdsTensor(const ModelInfo& info);
     void updatePositionIdsTensor(const ModelInfo& info);
     void updateAttentionMaskTensor(const ModelInfo& info);
@@ -178,20 +191,18 @@ private:
 public:
     ModelInfo modelInfo;
 
-    void* searchStrategyData = nullptr;
-    void (*searchStrategy)(const struct SearchArgs& args, void* searchStrategyData) = getNextTokens_greedy;
-
 public:
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);
     void loadOnnxModel(const Ort::Env& env, const std::string& modelPath);
 
     // static void getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
-    static void getNextTokens_greedyFiltered(const struct SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken);
-    static void getNextTokens_greedy(const struct SearchArgs& args, void* searchStrategyData);
-    void getNextTokens(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
+    static void getNextTokens_greedyFiltered(const struct SearchArgs& args, bool (*filter)(std::int32_t token, void* data), void* data);
+    static void getNextTokens_greedyPreFiltered(const struct SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken);
+    static void getNextTokens_greedy(const struct SearchArgs& args);
+    void getNextTokens(RunInstance& runInstance, const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
 
     void preGenerate(RunInstance& input);
-    void generate(RunInstance& input);
+    bool generate(RunInstance& input);
     void postGenerate(RunInstance& input);
 
     // Generate the next token given the input.

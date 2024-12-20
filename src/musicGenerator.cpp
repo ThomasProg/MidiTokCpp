@@ -118,6 +118,12 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
     }
 }
 
+void RunInstance::resetSearchStrategy()
+{
+    searchStrategy = [](const struct SearchArgs& args, void* searchStrategyData) { return MusicGenerator::getNextTokens_greedy(args); };
+}
+
+
 void RunInstance::createInputIdsTensor(const struct ModelInfo& info)
 {
     std::array<std::int64_t, 2> inputShape = {std::int64_t(getNbBatches()), static_cast<std::int64_t>(batches.front()->size())};
@@ -359,22 +365,46 @@ void MusicGenerator::preGenerate(RunInstance& input)
         input.bind(modelInfo);
     }
 }
-void MusicGenerator::generate(RunInstance& input)
+bool MusicGenerator::generate(RunInstance& input)
 {
     try 
     {
         // std::cout << "=============" << std::endl;
         session->Run(Ort::RunOptions{nullptr}, input.io_binding);
+        return true;
     }
     catch(const Ort::Exception& e)
     {
         std::cout << "Error occurred: " << e.what() << std::endl;           // Error message
         std::cout << "Error code: " << e.GetOrtErrorCode() << std::endl;    // Error code
-        exit(1);
+        return false;
     }
 }
 
-void MusicGenerator::getNextTokens_greedyFiltered(const SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken)
+void MusicGenerator::getNextTokens_greedyFiltered(const struct SearchArgs& args, bool (*filter)(std::int32_t token, void* data), void* data)
+{
+    // Get the last token's logits for each sequence in the batch
+    for(std::int32_t b = 0; b < args.nbBatches; ++b) 
+    {
+        // Pointer to the logits for the last token
+        const float* last_logits = args.logitsTensor + (b * args.nbSequences + (args.nbSequences - 1)) * args.vocabSize;
+        
+        // Find the index with the maximum logit
+        float max_logit = last_logits[0];
+        std::int32_t max_index = 0;
+        for(std::int32_t token = 1; token < args.vocabSize; token++) 
+        {
+            if(last_logits[token] > max_logit && (*filter)(token, data)) 
+            {
+                max_logit = last_logits[token];
+                max_index = token;
+            }
+        }
+        args.outNextTokens[b] = max_index;
+    }
+}
+
+void MusicGenerator::getNextTokens_greedyPreFiltered(const SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken)
 {    
     assert(args.vocabSize >= nbAvailableToken);
 
@@ -387,7 +417,7 @@ void MusicGenerator::getNextTokens_greedyFiltered(const SearchArgs& args, std::i
         // Find the index with the maximum logit
         float max_logit = last_logits[0];
         std::int32_t max_index = 0;
-        for(std::int32_t i = 0; i < nbAvailableToken; i++) 
+        for(std::int32_t i = 1; i < nbAvailableToken; i++) 
         {
             std::int32_t token = availableTokens[i];
             if(last_logits[token] > max_logit) 
@@ -401,7 +431,7 @@ void MusicGenerator::getNextTokens_greedyFiltered(const SearchArgs& args, std::i
 }
 
 
-void MusicGenerator::getNextTokens_greedy(const SearchArgs& args, void* searchStrategyData)
+void MusicGenerator::getNextTokens_greedy(const SearchArgs& args)
 {    
     // Get the last token's logits for each sequence in the batch
     for(std::int32_t b = 0; b < args.nbBatches; ++b) 
@@ -455,7 +485,7 @@ void MusicGenerator::getNextTokens_greedy(const SearchArgs& args, void* searchSt
 //     }
 // }
 
-void MusicGenerator::getNextTokens(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
+void MusicGenerator::getNextTokens(RunInstance& runInstance, const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
 {
     // getNextTokens_greedy(logitsTensor, outNextTokens);
 
@@ -467,11 +497,11 @@ void MusicGenerator::getNextTokens(const Ort::Value& logitsTensor, std::vector<R
     SearchArgs args;
     args.logitsTensor = logitsTensor.GetTensorData<float>();
     args.outNextTokens = outNextTokens.data();
-    args.nbBatches = shape[0];
-    args.nbSequences = shape[1];
-    args.vocabSize = shape[2];
+    args.nbBatches = static_cast<std::int32_t>(shape[0]);
+    args.nbSequences = static_cast<std::int32_t>(shape[1]);
+    args.vocabSize = static_cast<std::int32_t>(shape[2]);
 
-    (*searchStrategy)(args, searchStrategyData);
+    (*runInstance.searchStrategy)(args, runInstance.searchStrategyData);
     // getNextTokens_greedy(args);
 }
 
@@ -520,7 +550,7 @@ void MusicGenerator::postGenerate(RunInstance& input)
     std::int64_t nbBatches = input.getNbBatches(); 
 
     input.nextTokens.resize(nbBatches);
-    getNextTokens(input.logitsTensor, input.nextTokens);
+    getNextTokens(input, input.logitsTensor, input.nextTokens);
 
     // Update next inputs
     for (int64_t b = 0; b < nbBatches; ++b) 

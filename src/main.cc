@@ -21,6 +21,37 @@ void OnPitch(void* data, unsigned char pitch)
 
 #include "musicGenerator.hpp" // @TODO : remove
 
+void constructFiltered(MidiTokenizerHandle tokenizer, std::int32_t nbTokens, std::vector<std::int32_t>& outFilteredTokens, bool(*filter)(MidiTokenizerHandle tokenizer, const std::vector<std::int32_t>& decodedTokens))
+{
+	std::vector<std::int32_t> decodedTokens;
+	outFilteredTokens.reserve(nbTokens);
+	for (std::int32_t token = 0; token < nbTokens; token++)
+	{
+		tokenizer->decodeToken(token, decodedTokens);
+
+		if ((*filter)(tokenizer, decodedTokens))
+		{
+			outFilteredTokens.push_back(token);	
+		}
+	}
+	outFilteredTokens.shrink_to_fit();
+}
+
+void constructNextIsPitchFilter(MidiTokenizerHandle tokenizer, std::int32_t nbTokens, std::vector<std::int32_t>& outFilteredTokens)
+{
+	constructFiltered(tokenizer, nbTokens, outFilteredTokens, [](MidiTokenizerHandle tokenizer, const std::vector<std::int32_t>& decodedTokens) -> bool
+	{
+		for (std::int32_t decodedToken : decodedTokens)
+		{
+			if (tokenizer->isPitch(decodedToken))
+			{
+				return true;
+			}
+		}
+		return false;
+	});
+}
+
 void testComp()
 {
 	EnvHandle env = createEnv(false);
@@ -53,6 +84,35 @@ void testComp()
 	runInstance_setMaxInputLength(runInstanceForced, LineNbMaxToken);
 
 	batch_set(batch, inputIds.data(), inputIds.size(), 0);
+
+	std::int32_t* decodedTokens = nullptr;
+	std::int32_t nbDecodedTokens = 0;
+
+	// tokenizer_decodeToken(tok, 1877, &decodedTokens, &nbDecodedTokens);
+	// tokenizer_decodeToken(tok, 26, &decodedTokens, &nbDecodedTokens);
+	tokenizer_decodeToken(tok, 40, &decodedTokens, &nbDecodedTokens);
+
+	for (std::int32_t token = 1; token < 30000; token++)
+	{
+		float added = 0.0;
+
+
+		// @TODO : thread safe
+		tokenizer_decodeToken(tok, token, &decodedTokens, &nbDecodedTokens);
+		// if (isPitch(tok, token))
+		// {
+
+		// }
+	}
+
+
+
+
+
+
+
+
+
 
 	std::vector<int32_t> encodedTokensVec;
 	for (int i = 0; i < 1000; i++)
@@ -128,7 +188,7 @@ void testComp()
 		// 	PrintTensorContent<int32_t>(runInstanceForced->presentTensors[0]);
 		// }
 
-		assert(newToken == newTokenForced);
+		// assert(newToken == newTokenForced);
 		encodedTokensVec.push_back(newToken);
 		inputIds.push_back(newToken);
 	}

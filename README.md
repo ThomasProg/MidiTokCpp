@@ -5,3 +5,5 @@ To check if functions have been exported correctly:
 ```
 dumpbin.exe -headers MidiTokCpp.lib | findstr /c:"  Symbol name  :" > foo-exports.txt
 ```
+
+onnxruntime source: `https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Training`

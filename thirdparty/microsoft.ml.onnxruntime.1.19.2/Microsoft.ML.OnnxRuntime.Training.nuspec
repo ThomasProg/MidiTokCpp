@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.ML.OnnxRuntime.Training</id>
+    <version>1.19.2</version>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="file">LICENSE</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <icon>ORT_icon_for_light_bg.png</icon>
+    <projectUrl>https://github.com/Microsoft/onnxruntime</projectUrl>
+    <description>The onnxruntime-training native shared library artifacts are designed to efficiently train and infer a wide range of ONNX models on edge devices, such as client machines, gaming consoles, and other portable devices with a focus on minimizing resource usage and maximizing accuracy.See https://github.com/microsoft/onnxruntime-training-examples/tree/master/on_device_training for more details.</description>
+    <releaseNotes>Release Def:
+	Branch: refs/heads/rel-1.19.2
+	Commit: ffceed9d44f2f3efb9dd69fa75fea51163c91d91
+	Build: https://aiinfra.visualstudio.com/Lotus/_build/results?buildId=545671</releaseNotes>
+    <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+    <tags>native ONNX Runtime ONNXRuntime Machine Learning MachineLearning</tags>
+    <repository type="git" url="https://github.com/Microsoft/onnxruntime.git" commit="ffceed9d44f2f3efb9dd69fa75fea51163c91d91" />
+    <dependencies>
+      <group targetFramework=".NETCoreApp0.0">
+        <dependency id="Microsoft.ML.OnnxRuntime.Managed" version="1.19.2" />
+      </group>
+      <group targetFramework=".NETStandard0.0">
+        <dependency id="Microsoft.ML.OnnxRuntime.Managed" version="1.19.2" />
+      </group>
+      <group targetFramework=".NETFramework0.0">
+        <dependency id="Microsoft.ML.OnnxRuntime.Managed" version="1.19.2" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

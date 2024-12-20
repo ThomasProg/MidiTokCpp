@@ -178,12 +178,16 @@ private:
 public:
     ModelInfo modelInfo;
 
+    void* searchStrategyData = nullptr;
+    void (*searchStrategy)(const struct SearchArgs& args, void* searchStrategyData) = getNextTokens_greedy;
+
 public:
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);
     void loadOnnxModel(const Ort::Env& env, const std::string& modelPath);
 
     // static void getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
-    static void getNextTokens_greedy(const struct SearchArgs& args);
+    static void getNextTokens_greedyFiltered(const struct SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken);
+    static void getNextTokens_greedy(const struct SearchArgs& args, void* searchStrategyData);
     void getNextTokens(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
 
     void preGenerate(RunInstance& input);

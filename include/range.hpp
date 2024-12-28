@@ -2,11 +2,7 @@
 
 #include <cstdint>
 #include <vector>
-
-struct Range
-{
-    std::int32_t min, max;
-};
+#include "note.h"
 
 bool isColliding(const Range& a, const Range& b)
 {

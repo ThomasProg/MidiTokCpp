@@ -4,6 +4,7 @@
 #include "redirector.hpp"
 #include "midiTokenizer.hpp"
 #include "midiConverter.hpp"
+#include "range.hpp"
 
 extern "C" 
 {
@@ -339,6 +340,33 @@ bool converterProcessToken(MidiConverterHandle converter, const int32_t* tokens,
 void converterSetTokenizer(MidiConverterHandle converter, MidiTokenizerHandle tokenizer)
 {
     converter->tokenizerHandle = tokenizer;
+}
+
+
+
+RangeGroupHandle createRangeGroup()
+{
+    return new RangeGroup();
+}
+void destroyRangeGroup(RangeGroupHandle rangeGroup)
+{
+    delete rangeGroup;
+}
+
+void rangeGroupAdd(RangeGroupHandle rangeGroup, int32_t nb)
+{
+    // @TODO : opti for single number/
+    rangeGroup->addRange(Range{nb, nb});
+}
+void rangeGroupAddRange(RangeGroupHandle rangeGroup, int32_t min, int32_t max)
+{
+    rangeGroup->addRange(Range{min, max});
+}
+void rangeGroupGetRanges(RangeGroupHandle rangeGroup, Range const** outRanges, size_t* outNbElements)
+{
+    const std::vector<Range>& ranges = rangeGroup->getRanges();
+    *outRanges = ranges.data();
+    *outNbElements = ranges.size();
 }
 
 

@@ -132,4 +132,17 @@ extern "C"
 }
 
 
+// RangeGroup
+extern "C" 
+{
+    API_EXPORT RangeGroupHandle createRangeGroup();
+    API_EXPORT void destroyRangeGroup(RangeGroupHandle rangeGroup);
+
+    API_EXPORT void rangeGroupAdd(RangeGroupHandle rangeGroup, int32_t nb);
+    API_EXPORT void rangeGroupAddRange(RangeGroupHandle rangeGroup, int32_t min, int32_t max);
+    API_EXPORT void rangeGroupGetRanges(RangeGroupHandle rangeGroup, Range const** ranges, size_t* nbElements);
+
+
+}
+
 

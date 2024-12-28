@@ -157,8 +157,32 @@ void rawGenTest()
 
 }
 
+#include "range.hpp"
+void runRangeTest()
+{
+    RangeGroup group;
+    group.addRange({0, 10});
+    group.addRange({8, 15});
+    group.addRange({17, 19});
+    group.addRange({19, 25});
+    group.addRange({26, 29});
+
+    group.addRange({16, 16});
+
+    group.addRange({-4, -1});
+
+    const std::vector<Range>& ranges = group.getRanges();
+    for (const Range& range : ranges)
+    {
+        std::cout << range.min << " - " << range.max << std::endl;
+    }
+}
+
 int main()
 {
+    runRangeTest();
+    return 0;
+
     // rawGenTest();
     // return 0;
     
@@ -183,7 +207,8 @@ int main()
 
     for (int i = 0; i < 50; i++)
     {
-        generator.generate(input);
+        const char* outError;
+        generator.generate(input, outError);
     }
 
     std::cout << "Out Encoded Tokens" << std::endl;

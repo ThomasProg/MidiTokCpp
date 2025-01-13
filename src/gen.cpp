@@ -165,7 +165,7 @@ void tokenizer_decodeToken(MidiTokenizerHandle tokenizer, std::int32_t encodedTo
     {
         tokenizer->decodeToken(encodedToken, decodedTokens);
     }
-    catch (const std::exception& e)
+    catch (const std::exception&)
     {
         *outNbDecodedTokens = 0;
         *outDecodedTokens = nullptr;
@@ -180,6 +180,38 @@ void tokenizer_decodeToken(MidiTokenizerHandle tokenizer, std::int32_t encodedTo
     {
         (*outDecodedTokens)[i] = decodedTokens[i];
     }
+}
+
+void tokenizer_decodeToken_free(std::int32_t* outputIDs)
+{
+    delete[] outputIDs;
+}
+
+void tokenizer_addTokensStartingByPosition(MidiTokenizerHandle tokenizer, RangeGroupHandle outRangeGroup)
+{
+    tokenizer->addTokensStartingByPosition(*outRangeGroup);
+}
+void tokenizer_addTokensStartingByBarNone(MidiTokenizerHandle tokenizer, RangeGroupHandle outRangeGroup)
+{
+    tokenizer->addTokensStartingByBarNone(*outRangeGroup);
+}
+void tokenizer_addTokensStartingByPitch(MidiTokenizerHandle tokenizer, RangeGroupHandle outRangeGroup)
+{
+    tokenizer->addTokensStartingByPitch(*outRangeGroup);
+}
+void tokenizer_addTokensStartingByVelocity(MidiTokenizerHandle tokenizer, RangeGroupHandle outRangeGroup)
+{
+    tokenizer->addTokensStartingByVelocity(*outRangeGroup);
+}
+void tokenizer_addTokensStartingByDuration(MidiTokenizerHandle tokenizer, RangeGroupHandle outRangeGroup)
+{
+    tokenizer->addTokensStartingByDuration(*outRangeGroup);
+}
+
+const char* tokenizer_decodedTokenToString(MidiTokenizerHandle tokenizer, std::int32_t decodedToken)
+{
+    const std::string& str = tokenizer->decodedTokenToString(decodedToken);
+    return str.c_str();
 }
 
 
@@ -306,6 +338,14 @@ bool isPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
 {
     return tokenizer->isPitch(token);
 }
+bool isDuration(MidiTokenizerHandle tokenizer, std::int32_t token)
+{
+    return tokenizer->isDuration(token);
+}
+bool isVelocity(MidiTokenizerHandle tokenizer, std::int32_t token)
+{
+    return tokenizer->isVelocity(token);
+}
 
 std::int32_t getPosition(MidiTokenizerHandle tokenizer, std::int32_t token)
 {
@@ -348,6 +388,12 @@ RangeGroupHandle createRangeGroup()
 {
     return new RangeGroup();
 }
+
+RangeGroupHandle cloneRangeGroup(RangeGroupHandle rangeGroup)
+{
+    return new RangeGroup(*rangeGroup);
+}
+
 void destroyRangeGroup(RangeGroupHandle rangeGroup)
 {
     delete rangeGroup;

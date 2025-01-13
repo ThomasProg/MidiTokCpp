@@ -4,6 +4,7 @@
 #include <string>
 #include <codecvt>
 // #include "utf8.h"
+#include "range.hpp"
 
 // Function to get the number of bytes in a UTF-8 character based on the first byte
 size_t utf8_char_length(unsigned char c) {
@@ -599,68 +600,199 @@ bool MidiTokenizer::is_trained() const
     return _model.get() != nullptr;
 }
 
-    // def decode(
-    //     self,
-    //     tokens: TokSequence | list[TokSequence] | list[int | list[int]] | np.ndarray,
-    //     programs: list[tuple[int, bool]] | None = None,
-    //     output_path: str | Path | None = None,
-    // ) -> Score:
-    //     r"""
-    //     Detokenize one or several sequences of tokens into a ``symusic.Score``.
+// def decode(
+//     self,
+//     tokens: TokSequence | list[TokSequence] | list[int | list[int]] | np.ndarray,
+//     programs: list[tuple[int, bool]] | None = None,
+//     output_path: str | Path | None = None,
+// ) -> Score:
+//     r"""
+//     Detokenize one or several sequences of tokens into a ``symusic.Score``.
 
-    //     You can give the tokens sequences either as :class:`miditok.TokSequence`
-    //     objects, lists of integers, numpy arrays or PyTorch/Jax/Tensorflow tensors.
-    //     The Score's time division will be the same as the tokenizer's:
-    //     ``tokenizer.time_division``.
+//     You can give the tokens sequences either as :class:`miditok.TokSequence`
+//     objects, lists of integers, numpy arrays or PyTorch/Jax/Tensorflow tensors.
+//     The Score's time division will be the same as the tokenizer's:
+//     ``tokenizer.time_division``.
 
-    //     :param tokens: tokens to convert. Can be either a list of
-    //         :class:`miditok.TokSequence`, a Tensor (PyTorch and Tensorflow are
-    //         supported), a numpy array or a Python list of ints. The first dimension
-    //         represents tracks, unless the tokenizer handle tracks altogether as a
-    //         single token sequence (``tokenizer.one_token_stream == True``).
-    //     :param programs: programs of the tracks. If none is given, will default to
-    //         piano, program 0. (default: ``None``)
-    //     :param output_path: path to save the file. (default: ``None``)
-    //     :return: the ``symusic.Score`` object.
-    //     """
-    //     if not isinstance(tokens, (TokSequence, list)) or (
-    //         isinstance(tokens, list)
-    //         and any(not isinstance(seq, TokSequence) for seq in tokens)
-    //     ):
-    //         tokens = self._convert_sequence_to_tokseq(tokens)
+//     :param tokens: tokens to convert. Can be either a list of
+//         :class:`miditok.TokSequence`, a Tensor (PyTorch and Tensorflow are
+//         supported), a numpy array or a Python list of ints. The first dimension
+//         represents tracks, unless the tokenizer handle tracks altogether as a
+//         single token sequence (``tokenizer.one_token_stream == True``).
+//     :param programs: programs of the tracks. If none is given, will default to
+//         piano, program 0. (default: ``None``)
+//     :param output_path: path to save the file. (default: ``None``)
+//     :return: the ``symusic.Score`` object.
+//     """
+//     if not isinstance(tokens, (TokSequence, list)) or (
+//         isinstance(tokens, list)
+//         and any(not isinstance(seq, TokSequence) for seq in tokens)
+//     ):
+//         tokens = self._convert_sequence_to_tokseq(tokens)
 
-    //     # Preprocess TokSequence(s)
-    //     if isinstance(tokens, TokSequence):
-    //         self._preprocess_tokseq_before_decoding(tokens)
-    //     else:  # list[TokSequence]
-    //         for seq in tokens:
-    //             self._preprocess_tokseq_before_decoding(seq)
+//     # Preprocess TokSequence(s)
+//     if isinstance(tokens, TokSequence):
+//         self._preprocess_tokseq_before_decoding(tokens)
+//     else:  # list[TokSequence]
+//         for seq in tokens:
+//             self._preprocess_tokseq_before_decoding(seq)
 
-    //     score = self._tokens_to_score(tokens, programs)
+//     score = self._tokens_to_score(tokens, programs)
 
-    //     # Create controls for pedals
-    //     # This is required so that they are saved when the Score is dumped, as symusic
-    //     # will only write the control messages.
-    //     if self.config.use_sustain_pedals:
-    //         for track in score.tracks:
-    //             for pedal in track.pedals:
-    //                 track.controls.append(ControlChange(pedal.time, 64, 127))
-    //                 track.controls.append(ControlChange(pedal.end, 64, 0))
-    //             if len(track.pedals) > 0:
-    //                 track.controls.sort()
+//     # Create controls for pedals
+//     # This is required so that they are saved when the Score is dumped, as symusic
+//     # will only write the control messages.
+//     if self.config.use_sustain_pedals:
+//         for track in score.tracks:
+//             for pedal in track.pedals:
+//                 track.controls.append(ControlChange(pedal.time, 64, 127))
+//                 track.controls.append(ControlChange(pedal.end, 64, 0))
+//             if len(track.pedals) > 0:
+//                 track.controls.sort()
 
-    //     # Set default tempo and time signatures at tick 0 if not present
-    //     if len(score.tempos) == 0 or score.tempos[0].time != 0:
-    //         score.tempos.insert(0, Tempo(0, self.default_tempo))
-    //     if len(score.time_signatures) == 0 or score.time_signatures[0].time != 0:
-    //         score.time_signatures.insert(0, TimeSignature(0, *TIME_SIGNATURE))
+//     # Set default tempo and time signatures at tick 0 if not present
+//     if len(score.tempos) == 0 or score.tempos[0].time != 0:
+//         score.tempos.insert(0, Tempo(0, self.default_tempo))
+//     if len(score.time_signatures) == 0 or score.time_signatures[0].time != 0:
+//         score.time_signatures.insert(0, TimeSignature(0, *TIME_SIGNATURE))
 
-    //     # Write file
-    //     if output_path:
-    //         output_path = Path(output_path)
-    //         output_path.mkdir(parents=True, exist_ok=True)
-    //         if output_path.suffix in ABC_FILES_EXTENSIONS:
-    //             score.dump_abc(output_path)
-    //         else:
-    //             score.dump_midi(output_path)
-    //     return score
+//     # Write file
+//     if output_path:
+//         output_path = Path(output_path)
+//         output_path.mkdir(parents=True, exist_ok=True)
+//         if output_path.suffix in ABC_FILES_EXTENSIONS:
+//             score.dump_abc(output_path)
+//         else:
+//             score.dump_midi(output_path)
+//     return score
+
+void MidiTokenizer::addTokensStartingByPosition(RangeGroup& outRangeGroup)
+{
+    std::vector<int32_t> decodedTokens(10);
+    for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
+    {
+        try 
+        {
+            decodeToken(token, decodedTokens);
+        }
+        catch (const std::exception&)
+        {
+            continue;
+        }
+
+        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
+        if (!decodedTokens.empty())
+        {
+            std::int32_t decodedToken = decodedTokens[0];
+            if (isPosition(decodedToken))
+            {
+                outRangeGroup.add(token);
+            }
+        }
+    }
+}
+void MidiTokenizer::addTokensStartingByBarNone(RangeGroup& outRangeGroup)
+{
+    std::vector<int32_t> decodedTokens(10);
+    for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
+    {
+        try 
+        {
+            decodeToken(token, decodedTokens);
+        }
+        catch (const std::exception&)
+        {
+            continue;
+        }
+
+        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
+        if (!decodedTokens.empty())
+        {
+            std::int32_t decodedToken = decodedTokens[0];
+            if (isBarNone(decodedToken))
+            {
+                outRangeGroup.add(token);
+            }
+        }
+    }
+}
+void MidiTokenizer::addTokensStartingByPitch(RangeGroup& outRangeGroup)
+{
+    std::vector<int32_t> decodedTokens(10);
+    for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
+    {
+        try 
+        {
+            decodeToken(token, decodedTokens);
+        }
+        catch (const std::exception&)
+        {
+            continue;
+        }
+
+        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
+        if (!decodedTokens.empty())
+        {
+            std::int32_t decodedToken = decodedTokens[0];
+            if (isPitch(decodedToken))
+            {
+                outRangeGroup.add(token);
+            }
+        }
+    }
+}
+void MidiTokenizer::addTokensStartingByVelocity(RangeGroup& outRangeGroup)
+{
+    std::vector<int32_t> decodedTokens(10);
+    for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
+    {
+        try 
+        {
+            decodeToken(token, decodedTokens);
+        }
+        catch (const std::exception&)
+        {
+            continue;
+        }
+
+        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
+        if (!decodedTokens.empty())
+        {
+            std::int32_t decodedToken = decodedTokens[0];
+            if (isVelocity(decodedToken))
+            {
+                outRangeGroup.add(token);
+            }
+        }
+    }
+}
+void MidiTokenizer::addTokensStartingByDuration(RangeGroup& outRangeGroup)
+{
+    std::vector<int32_t> decodedTokens(10);
+    for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
+    {
+        try 
+        {
+            decodeToken(token, decodedTokens);
+        }
+        catch (const std::exception&)
+        {
+            continue;
+        }
+
+        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
+        if (!decodedTokens.empty())
+        {
+            std::int32_t decodedToken = decodedTokens[0];
+            if (isDuration(decodedToken))
+            {
+                outRangeGroup.add(token);
+            }
+        }
+    }
+}
+
+const std::string& MidiTokenizer::decodedTokenToString(int32_t decodedToken)
+{
+    return __vocab_base_inv[decodedToken];
+}

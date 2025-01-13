@@ -94,7 +94,7 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
     modelInfo.num_attention_heads = 4;
     modelInfo.hidden_size = 256;
     modelInfo.num_layer = 6;
-    modelInfo.vocab_size = 30000;
+    modelInfo.vocab_size = 10000;
     modelInfo.nbMaxPositions = 512;
 
     // Input Labels

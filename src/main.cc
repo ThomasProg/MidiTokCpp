@@ -55,10 +55,12 @@ void constructNextIsPitchFilter(MidiTokenizerHandle tokenizer, std::int32_t nbTo
 void testComp()
 {
 	EnvHandle env = createEnv(false);
-	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
+	// MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
+	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/Models/TSD/tokenizer.json");
 	MusicGeneratorHandle generator = createMusicGenerator();
 
-	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model_past.onnx");
+	// generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/REMI//gpt2-midi-model_past.onnx");
+	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/TSD/TSDmodel-1.2.0.onnx");
 
 	int32_t input_ids[] = {
 	942,    65,  1579,  1842,   616,    46,  3032,  1507,   319,  1447,
@@ -259,15 +261,18 @@ int main()
 	std::cout << "Workspace path : " << WORKSPACE_PATH << std::endl;
 
 	EnvHandle env = createEnv(false);
-	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
+	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/Models/TSD/tokenizer.json");
+	// MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
 	MusicGeneratorHandle generator = createMusicGenerator();
 
-	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/onnx_model_path/gpt2-midi-model_past.onnx");
+	// generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/REMI/gpt2-midi-model_past.onnx");
+	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/TSD/TSDmodel-1.2.0.onnx");
 
 	int32_t input_ids[] = {
-	942,    65,  1579,  1842,   616,    46,  3032,  1507,   319,  1447,
-	12384,  1016,  1877,   319, 15263,  3396,   302,  2667,  1807,  3388,
-	2649,  1173,    50,   967,  1621,   256,  1564,   653,  1701,   377
+		0,
+	// 942,    65,  1579,  1842,   616,    46,  3032,  1507,   319,  1447,
+	// 12384,  1016,  1877,   319, 15263,  3396,   302,  2667,  1807,  3388,
+	// 2649,  1173,    50,   967,  1621,   256,  1564,   653,  1701,   377
 	};
 
 	std::vector<std::int32_t> inputIds(std::begin(input_ids), std::end(input_ids));

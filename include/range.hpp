@@ -4,7 +4,7 @@
 #include <vector>
 #include "note.h"
 
-bool isColliding(const Range& a, const Range& b)
+inline bool isColliding(const Range& a, const Range& b)
 {
     return (a.min < b.max && a.max > b.min);
 }
@@ -79,6 +79,11 @@ public:
     bool findRange(std::int32_t x, std::size_t& foundIndex) const
     {
         return findRange(x, 0, ranges.size()-1, foundIndex);
+    }
+
+    void add(std::int32_t x)
+    {
+        addRange({x,x});
     }
 
     void addRange(Range newRange)

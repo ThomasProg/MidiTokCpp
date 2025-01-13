@@ -149,32 +149,37 @@ public:
     // Optimized conversions
     // @TODO : implement directly with hashmaps
 
+    static bool startBy(const char* str, const char* startBy)
+    {
+        int i = 0;
+        while (str[i] == startBy[i] && str[i] != '\0' && startBy[i] != '\0')
+        {
+            i++;
+        }
+        return startBy[i] == '\0';
+    }
+
     bool isBarNone(std::int32_t token)
     {
-        std::string str = __vocab_base_inv.at(token);
+        const std::string& str = __vocab_base_inv.at(token);
 
         // auto it = std::find(str.begin(), str.end(), '_');
         // std::int32_t typeSize = it - str.begin();
         // std::string type = str.substr(0, typeSize);
         // std::string value = str.substr(it - str.begin(), str.size() - typeSize);
 
-        return str == "Bar_None";
+        return startBy(str.c_str(), "Bar_None");
     }
 
     bool isPosition(std::int32_t token)
     {
-        std::string str = __vocab_base_inv.at(token);
-
-        auto it = std::find(str.begin(), str.end(), '_');
-        std::int32_t typeSize = std::int32_t(it - str.begin());
-        std::string type = str.substr(0, typeSize);
-
-        return type == "Position";
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "Position_");
     }
 
     std::int32_t getPositionValue(std::int32_t token)
     {
-        std::string str = __vocab_base_inv.at(token);
+        const std::string& str = __vocab_base_inv.at(token);
 
         auto it = std::find(str.begin(), str.end(), '_');
         std::int32_t typeSize = std::int32_t(it - str.begin());
@@ -186,18 +191,13 @@ public:
 
     bool isPitch(std::int32_t token)
     {
-        std::string str = __vocab_base_inv.at(token);
-
-        auto it = std::find(str.begin(), str.end(), '_');
-        std::int32_t typeSize = std::int32_t(it - str.begin());
-        std::string type = str.substr(0, typeSize);
-
-        return type == "Pitch";
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "Pitch_");
     }
 
     std::int32_t getPitchValue(std::int32_t token)
     {
-        std::string str = __vocab_base_inv.at(token);
+        const std::string& str = __vocab_base_inv.at(token);
 
         auto it = std::find(str.begin(), str.end(), '_');
         std::int32_t typeSize = std::int32_t( it - str.begin());
@@ -209,18 +209,13 @@ public:
 
     bool isDuration(std::int32_t token)
     {
-        std::string str = __vocab_base_inv.at(token);
-
-        auto it = std::find(str.begin(), str.end(), '_');
-        std::int32_t typeSize = std::int32_t(it - str.begin());
-        std::string type = str.substr(0, typeSize);
-
-        return type == "Duration";
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "Duration_");
     }
 
     std::int32_t getDurationValue(std::int32_t token)
     {
-        std::string str = __vocab_base_inv.at(token);
+        const std::string& str = __vocab_base_inv.at(token);
 
         auto it = std::find(str.begin(), str.end(), '_');
         std::int32_t typeSize = std::int32_t( it - str.begin());
@@ -232,18 +227,13 @@ public:
 
     bool isVelocity(std::int32_t token)
     {
-        std::string str = __vocab_base_inv.at(token);
-
-        auto it = std::find(str.begin(), str.end(), '_');
-        std::int32_t typeSize = std::int32_t(it - str.begin());
-        std::string type = str.substr(0, typeSize);
-
-        return type == "Velocity";
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "Velocity_");
     }
 
     std::int32_t getVelocityValue(std::int32_t token)
     {
-        std::string str = __vocab_base_inv.at(token);
+        const std::string& str = __vocab_base_inv.at(token);
 
         auto it = std::find(str.begin(), str.end(), '_');
         std::int32_t typeSize = std::int32_t( it - str.begin());
@@ -254,6 +244,15 @@ public:
     }
 
 
+
+    void addTokensStartingByPosition(RangeGroup& outRangeGroup);
+    void addTokensStartingByBarNone(RangeGroup& outRangeGroup);
+    void addTokensStartingByPitch(RangeGroup& outRangeGroup);
+    void addTokensStartingByVelocity(RangeGroup& outRangeGroup);
+    void addTokensStartingByDuration(RangeGroup& outRangeGroup);
+
+
+    const std::string& decodedTokenToString(int32_t decodedToken);
 };
 
 

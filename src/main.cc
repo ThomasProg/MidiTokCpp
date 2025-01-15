@@ -56,11 +56,13 @@ void testComp()
 {
 	EnvHandle env = createEnv(false);
 	// MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
-	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/Models/TSD/tokenizer.json");
+	// MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/Models/TSD/tokenizer.json");
+	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/Models/TSD/1.2.1/tokenizer.json");
 	MusicGeneratorHandle generator = createMusicGenerator();
 
 	// generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/REMI//gpt2-midi-model_past.onnx");
-	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/TSD/TSDmodel-1.2.0.onnx");
+	// generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/TSD/TSDmodel-1.2.0.onnx");
+	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/TSD/1.2.1/model.onnx");
 
 	int32_t input_ids[] = {
 	942,    65,  1579,  1842,   616,    46,  3032,  1507,   319,  1447,
@@ -261,12 +263,12 @@ int main()
 	std::cout << "Workspace path : " << WORKSPACE_PATH << std::endl;
 
 	EnvHandle env = createEnv(false);
-	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/Models/TSD/tokenizer.json");
+	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/Models/TSD/1.2.1/tokenizer.json");
 	// MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
 	MusicGeneratorHandle generator = createMusicGenerator();
 
 	// generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/REMI/gpt2-midi-model_past.onnx");
-	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/TSD/TSDmodel-1.2.0.onnx");
+	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/TSD/1.2.1/model.onnx");
 
 	int32_t input_ids[] = {
 		0,
@@ -296,7 +298,7 @@ int main()
 	}
 
 	std::vector<int32_t> encodedTokensVec;
-	for (int i = 0; i < 10000; i++)
+	for (int i = 0; i < 1000; i++)
 	{
 		if (forceUpdate)
 		{
@@ -324,7 +326,9 @@ int main()
 		encodedTokensVec.push_back(newToken);
 		inputIds.push_back(newToken);
 
-		std::cout << i << '\r';
+		std::cout << newToken << ',';
+
+		// std::cout << i << '\r';
 	}
 
 	// DataType* encodedTokens = nullptr; 
@@ -346,10 +350,9 @@ int main()
 	for (int i = 0; i < outTokensSize; i++)
 	{
 		outTokensVec.push_back(outTokens[i]);
+
+		// std::cout << outTokens[i] << ',';
 	}
-
-
-	// input_decodeIDs(input, tok, &outTokens, &outTokensSize);
 
     // Get the ending time
     auto end = std::chrono::high_resolution_clock::now();
@@ -359,21 +362,50 @@ int main()
 
 	std::cout << "duration : " << duration << std::endl;
 
+	MidiConverterHandle converter = createMidiConverter();
+	converterSetTokenizer(converter, tok);
+	// return 0;
 
-
-
-	RedirectorHandle redirector = createRedirector();
-
-	redirector_bindPitch(redirector, tok, "Pitch_", nullptr, OnPitch);
-
-	for (int32_t i = 0; i < outTokensSize; i++)
+	converterSetOnNote(converter, [](void* data, const Note& newNote)
 	{
-		bool found = redirector_call(redirector, outTokens[i]);
+		std::cout << "note: ";
+		std::cout << "Pitch: " << newNote.pitch << " / ";
+		std::cout << "Duration: " << newNote.duration << " / ";
+		std::cout << "Velocity: " << newNote.velocity << " / ";
+		std::cout << "Tick: " << newNote.tick << std::endl;
+	});
+
+
+	std::int32_t i = 0;
+	while (i < outTokensSize)
+	{
+
+		bool isSuccess = converterProcessToken(converter, outTokens, outTokensSize, &i, nullptr);
+		if (isSuccess)
+		{
+			// nextTokenToProcess = i;
+		}
+		else
+		{
+			i++; // ignore current token and continue
+		}
 	}
 
-	tokenizer_decodeIDs_free(outTokens);
 
-	destroyRedirector(redirector);
+	destroyMidiConverter(converter);
+
+	// RedirectorHandle redirector = createRedirector();
+
+	// redirector_bindPitch(redirector, tok, "Pitch_", nullptr, OnPitch);
+
+	// for (int32_t i = 0; i < outTokensSize; i++)
+	// {
+	// 	bool found = redirector_call(redirector, outTokens[i]);
+	// }
+
+	// tokenizer_decodeIDs_free(outTokens);
+
+	// destroyRedirector(redirector);
 
 	destroyBatch(batch);
 	destroyRunInstance(runInstance);

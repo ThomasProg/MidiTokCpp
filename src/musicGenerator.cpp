@@ -84,6 +84,77 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
         exit(1);
     }
 
+
+    const OrtApi *api = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+
+    // Retrieve model input/output info
+    size_t num_inputs = session->GetInputCount();
+    printf("Number of inputs: %zu\n", num_inputs);
+
+    // Retrieve initializers
+    OrtAllocator *allocator;
+    api->GetAllocatorWithDefaultOptions(&allocator);
+
+    for (size_t i = 0; i < num_inputs; i++) {
+        char *name;
+        api->SessionGetInputName(*session, i, allocator, &name);
+        printf("Input name: %s\n", name);
+
+        // Inspect input dimensions (for vocab_size, etc.)
+        auto typeInfo = session->GetInputTypeInfo(i);
+        auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
+
+        for (auto i : shapeInfo.GetShape())
+        {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
+
+        api->AllocatorFree(allocator, name);
+    }
+
+
+
+    std::cout << "ov" <<session->GetOverridableInitializerCount() << std::endl;
+
+    for (int i = 0; i < session->GetOverridableInitializerCount(); i++)
+    {
+        auto str = session->GetOverridableInitializerNameAllocated(i, allocator);
+        auto typeInfo = session->GetOverridableInitializerTypeInfo(i);
+        auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
+
+        for (auto i : shapeInfo.GetShape())
+        {
+            std::cout << i << "dfrgtftdrsertf";
+        }
+
+        std::cout << str << std::endl;
+
+    }
+
+    size_t num_outputs = session->GetOutputCount();
+    printf("Number of outputs: %zu\n", num_outputs);
+    for (size_t i = 0; i < num_outputs; i++) {
+        char *name;
+        api->SessionGetInputName(*session, i, allocator, &name);
+        printf("Input name: %s\n", name);
+
+        // Inspect input dimensions (for vocab_size, etc.)
+        auto typeInfo = session->GetInputTypeInfo(i);
+        auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
+
+        for (auto i : shapeInfo.GetShape())
+        {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
+
+        api->AllocatorFree(allocator, name);
+    }
+
+
+
+
     // Load Config
     // @TODO : load from config
 
@@ -94,7 +165,7 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
     modelInfo.num_attention_heads = 4;
     modelInfo.hidden_size = 256;
     modelInfo.num_layer = 6;
-    modelInfo.vocab_size = 10000;
+    modelInfo.vocab_size = 500;
     modelInfo.nbMaxPositions = 512;
 
     // Input Labels

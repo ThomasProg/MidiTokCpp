@@ -291,7 +291,7 @@ int main()
 
     Args args{ i, UnplayedTokenIndex};
 
-    MIDIConverter converter;
+    REMIConverter converter;
     converter.onNote = [](void* data, const Note& newNote)
     {
         Args& args = *(Args*)(data);
@@ -303,7 +303,7 @@ int main()
 
     while (i < outTokens.size())
     {
-        converter.processToken(outTokens, i, &args);
+        converter.MIDIConverter::processToken(outTokens, i, &args);
         // converterProcessToken(converter, outTokens, i, &args);
         i++;
     }

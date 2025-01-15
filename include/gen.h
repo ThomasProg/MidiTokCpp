@@ -130,6 +130,8 @@ extern "C"
 extern "C" 
 {
     API_EXPORT MidiConverterHandle createMidiConverter();
+    API_EXPORT MidiConverterHandle createREMIConverter();
+    API_EXPORT MidiConverterHandle createTSDConverter();
     API_EXPORT void destroyMidiConverter(MidiConverterHandle converter);
 
     API_EXPORT void converterSetOnNote(MidiConverterHandle converter, void (*onNote)(void* data, const Note&));

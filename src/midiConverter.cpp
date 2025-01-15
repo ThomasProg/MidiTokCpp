@@ -2,14 +2,19 @@
 #include "midiTokenizer.hpp"
 #include "redirector.hpp"
 
-void MIDIConverter::reset()
+bool MIDIConverter::processToken(const std::vector<int32_t>& tokens, std::int32_t& index, void* data)
+{
+    return processToken(tokens.data(), std::int32_t(tokens.size()), index, data);
+}
+
+void REMIConverter::reset()
 {
     currentTick = 0;
     tickAtCurrentBar = 0;
     currentBar = -1;
 }
 
-bool MIDIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t& index, void* data)
+bool REMIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t& index, void* data)
 {
     if (index >= nbTokens)
         return false;
@@ -73,37 +78,117 @@ bool MIDIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::i
     return false;
 }
 
-bool MIDIConverter::processToken(const std::vector<int32_t>& tokens, std::int32_t& index, void* data)
+
+
+
+void TSDConverter::reset()
 {
-    return processToken(tokens.data(), std::int32_t(tokens.size()), index, data);
+    currentTick = 0;
+    previousNoteEnd = 0;
+    ticks_per_beat = 0;
 }
-
-void tryPlay(const std::vector<int32_t>& tokens, std::int32_t& unplayedTokenIndex)
+bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t& index, void* data)
 {
-    std::int32_t i = unplayedTokenIndex;
+    if (index >= nbTokens)
+        return false;
 
-    struct Args
+    MidiTokenizer& tok = *tokenizerHandle;
+    int32_t token = tokens[index];
+
+    // @TODO : do at set only (so if timesig event, doesn't reset)
+    ticks_per_beat = tok.time_division;
+
+
+    if (tok.isTimeShift(token))
     {
-        std::int32_t& i;
-        std::int32_t& unplayedTokenIndex;
-    };
-
-    Args args{i, unplayedTokenIndex};
-
-    MIDIConverter converter;
-    converter.onNote = [](void* data, const Note& newNote)
-    {
-        Args& args = *(Args*)(data);
-        args.unplayedTokenIndex = args.i + 1;
-
-
-
-    };
-
-
-    while (i < tokens.size())
-    {
-        converter.processToken(tokens, i, &args);
-        i++;
+        currentTick += tok._tpb_tokens_to_ticks[ticks_per_beat][tok.getTimeShiftValue(token)];
+        index++;
+        return true;
     }
+    else if (tok.isRest(token))
+    {
+        currentTick = std::max(previousNoteEnd, currentTick);
+        currentTick += tok._tpb_rests_to_ticks[ticks_per_beat][tok.getRestValue(token)];
+        index++;
+        return true;
+    }
+    else if (tok.isPitch(token)) // @TODO : PitchDrum, PitchIntervalTime, PitchIntervalChord
+    {
+        std::int32_t pitch = tok.getPitchValue(token);
+
+        std::int32_t velocity = defaultVelocity;
+        std::int32_t duration = defaultDuration;
+        std::int32_t indexIncr = 1;
+
+        if (tok.useVelocities())
+        {
+            std::int32_t velocityToken = tokens[index+velocityOffset];
+            if (tok.isVelocity(velocityToken))
+            {
+                velocity = tok.getVelocityValue(velocityToken);
+                indexIncr += 1;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (tok.useDuration())
+        {
+            std::int32_t durationToken = tokens[index+durationOffset];
+            if (tok.isDuration(durationToken))
+            {
+                // if isinstance(dur, str):
+                //     dur = self._tpb_tokens_to_ticks[ticks_per_beat][dur]
+                velocity = tok.getDurationValue(durationToken);
+                indexIncr += 1;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        Note newNote;
+        newNote.pitch = pitch;
+        newNote.tick = currentTick;
+        newNote.duration = duration;
+        newNote.velocity = velocity;
+        onNote(data, newNote);
+        index += indexIncr;
+        return true;
+    }
+    else
+    {
+        if (tok.isProgram(token))
+        {
+            throw std::logic_error("Program not supported yet");
+        }
+        else if (tok.isTempo(token))
+        {
+            throw std::logic_error("Tempo not supported yet");
+        }
+        else if (tok.isTimeSig(token))
+        {
+            // ticks_per_beat = tok.compute_ticks_per_beat();
+            throw std::logic_error("TimeSig not supported yet");
+        }
+        else if (tok.isPedal(token))
+        {
+            throw std::logic_error("Pedal not supported yet");
+        }
+        else if (tok.isPedalOff(token))
+        {
+            throw std::logic_error("PedalOff not supported yet");
+        }
+        else if (tok.isPitchBend(token))
+        {
+            throw std::logic_error("PitchBend not supported yet");
+        }
+
+        previousNoteEnd = std::max(previousNoteEnd, currentTick);
+    }
+
+    return false;
 }

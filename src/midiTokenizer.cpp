@@ -296,8 +296,138 @@ std::string decode_utf8_to_binary(const std::string& utf8_string) {
 }
 
 
+std::string join(const std::vector<int>& vec, const std::string& delimiter = ".") {
+    std::ostringstream oss;
+    for (size_t i = 0; i < vec.size(); ++i) {
+        oss << vec[i];
+        if (i < vec.size() - 1) {
+            oss << delimiter;
+        }
+    }
+    return oss.str();
+}
+
+int MidiTokenizer::_time_token_to_ticks(int beat, int pos, int res, int ticks_per_beat)
+{
+    return (beat * res + pos) * ticks_per_beat / res;
+}
+
+std::vector<std::pair<int, int>> MidiTokenizer::__create_time_signatures() const
+{
+    std::vector<std::pair<int, int>> time_signatures;
+
+    for (auto& [beat_res, beats] : _time_signature_range)
+    {
+        if (beat_res <= 0)
+        {
+            throw std::runtime_error("The beat resolution in time signature must be a power 2.");
+        }
+        float v = std::log2(beat_res);
+        if (v - (std::floor(v) < 0.001))
+        {
+            throw std::runtime_error("The beat resolution in time signature must be a power 2.");
+        }
+
+        for (int num_beats : beats)
+        {
+            time_signatures.emplace_back(num_beats, beat_res);
+        }
+    }
+
+    return time_signatures;
+}
+
+std::map<int, int> MidiTokenizer::__create_tpb_per_ts()
+{
+    int max_denom = -1;
+    for (auto& [num_beats, beat_res] : time_signatures)
+    {
+        max_denom = std::max(max_denom, beat_res);
+    }
+
+    std::map<int, int> out;
+    for (const auto& denom : _time_signature_range)
+    {
+        out[denom.first] = max_num_pos_per_beat() * (max_denom / denom.first);
+    }
+    return out;
+}
 
 
+std::vector<std::tuple<int, int, int>> MidiTokenizer::_create_durations_tuples() const
+{
+    std::vector<std::tuple<int, int, int>> durations;
+
+    for (const auto& [beat_range, beat_res] : _beat_res)
+    {
+        for (int beat = beat_range.first; beat < beat_range.second; beat++)
+        {
+            for (int pos = 0; pos < beat_res; pos++)
+            {
+                durations.emplace_back(beat, pos, beat_res);
+            }
+        }
+    }
+
+    int max = 0;
+    int maxPairValue;
+    for (auto& [pair, i] : _beat_res)
+    {
+        if (max < pair.second)
+        {
+            max = pair.second;
+            maxPairValue = i;
+        }
+    }
+
+    durations.emplace_back(max, 0, maxPairValue);
+
+    durations.erase(durations.begin());
+
+    return durations;
+}
+
+// Create the correspondences between times in tick and token value (str).
+
+// These correspondences vary following the ticks/beat value, which depends on the
+// time signature.
+
+// The returned dictionary is used when decoding *Duration*/*TimeShift*/*Rest*
+// tokens while taking the time signature into account.
+
+// :param rest: will use rest values if given ``True``, otherwise durations.
+//     (default: ``False``)
+// :return: ticks per beat + token value to duration in tick.
+std::map<int, std::map<std::string, int>> MidiTokenizer::__create_tpb_tokens_to_ticks(bool rest)
+{
+    std::map<int, std::map<std::string, int>> tpb_tokens_to_ticks;
+
+    if (rest)
+    {
+        throw std::runtime_error("__create_tpb_tokens_to_ticks() : rest unimplemented");
+    }
+    // const std::vector<std::tuple<int, int, int>>& values = rests ? rest : durations;
+    const std::vector<std::tuple<int, int, int>>& values = durations;
+
+    for (const auto& tpb : _tpb_per_ts)
+    {
+        std::map<std::string, int> ticks;
+        for (const auto& duration_tuple : values)
+        {
+            int beat = std::get<0>(duration_tuple);
+            int pos = std::get<1>(duration_tuple);
+            int res = std::get<2>(duration_tuple);
+
+            std::vector<int> duration_vec = {beat, pos, res};
+            std::string key = join(duration_vec); // Create key as "a.b.c" from duration_tuple
+            int value = _time_token_to_ticks(beat, pos, res, tpb.first); // Compute value
+            ticks[key] = value;
+        }
+
+        tpb_tokens_to_ticks[tpb.first] = std::move(ticks);
+    } 
+    return tpb_tokens_to_ticks;
+}
 
 void MidiTokenizer::loadFromJson(const std::string& filename)
 {
@@ -337,26 +467,8 @@ void MidiTokenizer::loadFromJson(const std::string& filename)
 
         if (key == "_model")
         {
-            // std::string v = value.dump();
-            // v = v.substr(1, v.size() - 2);
             std::string v = value.template get<std::string>();
-
-            // std::ifstream file("C:/Users/thoma/Documents/Unreal Projects/MIDITokCpp/model_arg.bin", std::ios::binary);  // Open file in binary mode
-            // if (file) {
-            //     // Move the cursor to the end of the file
-            //     file.seekg(0, std::ios::end);
-            //     // Get the file size
-            //     std::streamsize size = file.tellg();
-            //     file.seekg(0, std::ios::beg);
-
-            //     // Create a string to hold the contents
-            //     std::string buffer(size, '\0');  // Create string with 'size' characters initialized to null
-            //     if (file.read(&buffer[0], size)) {
-            //         std::cout << "File content as bytes: \n" << buffer << std::endl;
-            //     }
-
             _model = tokenizers::Tokenizer::FromBlobJSON(v);
-            // }
             continue;
         }
 
@@ -410,14 +522,102 @@ void MidiTokenizer::loadFromJson(const std::string& filename)
 
         if (key == "config")
         {
-            if (value.contains("chord_maps"))
             {
-                // @TODO
+                auto it = value.find("use_velocities");
+                if (it != value.end())
+                {
+                    bUseVelocities = it->get<bool>();
+                }
             }
-            const char* beat_res_keys[] = {"beat_res", "beat_res_rest"};
-            for (const char* beat_res_key : beat_res_keys)
+
             {
-                // @TODO
+                auto it = value.find("use_time_signatures");
+                if (it != value.end())
+                {
+                    bUseTimeSignatures = it->get<bool>();
+                }
+            }
+
+            {
+                auto it = value.find("beat_res");
+                if (it != value.end())
+                {
+                    for (auto& [k, v] : it->items())
+                    {
+                        size_t delimiterPos = k.find('_');
+                        if (delimiterPos != std::string::npos) 
+                        {
+                            std::string leftStr = k.substr(0, delimiterPos);
+                            std::string rightStr = k.substr(delimiterPos + 1);
+                            std::pair<int, int> key;
+                            try
+                            {
+                                key = {std::stoi(leftStr), std::stoi(rightStr)};
+                            }
+                            catch (const std::exception&)
+                            {
+                                throw std::runtime_error("beat_res: invalid syntax in config");
+                            }
+                            _beat_res[key] = v;
+                        }
+                    }
+                }
+            }
+
+            {
+                auto it = value.find("time_signature_range");
+                if (it != value.end())
+                {
+                    for (auto& [res, beat_range] : it->items())
+                    {
+                        _time_signature_range[std::stoi(res)] = beat_range.get<std::vector<int>>();
+                    }
+                }
+            }
+
+            {
+                auto it = value.find("beat_res_rest");
+                if (it != value.end())
+                {
+                    for (auto& [k, v] : it->items())
+                    {
+                        size_t delimiterPos = k.find('_');
+                        if (delimiterPos != std::string::npos) 
+                        {
+                            std::string leftStr = k.substr(0, delimiterPos);
+                            std::string rightStr = k.substr(delimiterPos + 1);
+                            std::pair<int, int> key;
+                            try
+                            {
+                                key = {std::stoi(leftStr), std::stoi(rightStr)};
+                            }
+                            catch (const std::exception&)
+                            {
+                                throw std::runtime_error("beat_res: invalid syntax in config");
+                            }
+                            _beat_res[key] = v;
+                        }
+                    }
+                }
+            }
+
+            {
+                auto it = value.find("rest_range");
+                if (it != value.end())
+                {
+                    throw std::runtime_error("rest_range unimplemented yet");
+                }
+            }
+
+            {
+                auto it = value.find("chord_maps");
+                if (it != value.end())
+                {
+                    for (auto& [k, v] : it->items())
+                    {
+                        _chord_maps[k] = v.get<std::vector<int>>();
+                    }
+                }
             }
 
             // @TODO

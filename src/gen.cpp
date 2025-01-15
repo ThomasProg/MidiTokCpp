@@ -360,8 +360,18 @@ std::int32_t getPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
 
 MidiConverterHandle createMidiConverter()
 {
-    return new MIDIConverter();
+    // return new REMIConverter();
+    return new TSDConverter();
 }
+MidiConverterHandle createREMIConverter()
+{
+    return new REMIConverter();
+}
+MidiConverterHandle createTSDConverter()
+{
+    return new TSDConverter();
+}
+
 void destroyMidiConverter(MidiConverterHandle converter)
 {
     delete converter;

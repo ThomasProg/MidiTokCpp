@@ -19,8 +19,7 @@ using json = nlohmann::json;
 
 using Score = std::vector<int32_t>;
 
-
-
+inline constexpr std::pair<int, int> TIME_SIGNATURE = std::pair<int, int>(4,4);
 
 // https://github.com/Natooz/MidiTok/blob/main/miditok/midi_tokenizer.py
 class MidiTokenizer
@@ -28,6 +27,10 @@ class MidiTokenizer
 private:
     // the other way, to decode id (int) -> token (str)
     std::map<int32_t, std::string> __vocab_base_inv;
+
+    bool bUseVelocities = false;
+    bool bUseDuration = false;
+    bool bUseTimeSignatures = false;
 
 protected:    
     // vocab of prime tokens, can be viewed as unique char / bytes
@@ -48,8 +51,64 @@ protected:
     // byte(s) -> token(s), for faster BPE/Unigram/WordPiece decoding
     std::map<std::string, std::vector<std::string>> _vocab_learned_bytes_to_tokens;
 
+
+    std::map<std::pair<int, int>, int32_t> _beat_res;
+    std::map<int, std::vector<int>> _time_signature_range;
+    std::map<std::string, std::vector<int>> _chord_maps;
+
+public:
+
+    std::map<int, int> _tpb_per_ts;
+    std::map<int, std::map<std::string, int>> _tpb_tokens_to_ticks;
+    std::map<int, std::map<std::string, int>> _tpb_rests_to_ticks;
+
+    std::vector<std::pair<int, int>> time_signatures;
+    std::vector<std::tuple<int, int, int>> durations;
+
+    int time_division = 0;
+
 private:
     void __create_vocab_learned_bytes_to_tokens();
+    std::map<int, int> __create_tpb_per_ts();
+
+    // Create the possible durations in beat / position units as tuples of intergers.
+
+    // The tuples follow the form: ``(beat, pos, res)`` where ``beat`` is the number
+    // of beats, ``pos`` the number of "positions" and ``res`` the beat resolution
+    // considered (positions per beat).
+    // Example: ``(2, 5, 8)`` means the duration is 2 beat long + position 5 / 8 of
+    // the ongoing beat. This would give in ticks:
+    // ``duration = (beat * res + pos) * ticks_per_beat // res``
+    // Note that ``ticks_per_beat`` is different from the time division, as the number
+    // of ticks per beat depends on the current time signature denominator.
+    // If ticks_per_beat is 384:
+    // ``duration = (2 * 8 + 5) * 384 // 8 = 1008`` ticks.
+
+    // :return: the duration bins.
+    std::vector<std::tuple<int, int, int>> _create_durations_tuples() const;
+
+    // Create the correspondences between times in tick and token value (str).
+
+    // These correspondences vary following the ticks/beat value, which depends on the
+    // time signature.
+
+    // The returned dictionary is used when decoding *Duration*/*TimeShift*/*Rest*
+    // tokens while taking the time signature into account.
+
+    // :param rest: will use rest values if given ``True``, otherwise durations.
+    //     (default: ``False``)
+    // :return: ticks per beat + token value to duration in tick.
+    std::map<int, std::map<std::string, int>> __create_tpb_tokens_to_ticks(bool rest = false);
+
+    // Create time signatures of the vocabulary, as tuples of integers.
+
+    // The tuples have the form ``(num_beats, beat_res)`` where ``num_beats`` is the
+    // number of beats per bar.
+    // Example: ``(3, 4)`` means one bar is 3 beat long and each beat is a quarter
+    // note.
+
+    // :return: the time signatures.
+    std::vector<std::pair<int, int>> __create_time_signatures() const;
 
 protected:
     TokSequence _convert_sequence_to_tokseq(const std::vector<int32_t>& tokens) const;
@@ -63,6 +122,19 @@ protected:
     // :return: list of corresponding ids (int).
     std::vector<int32_t> _tokens_to_ids(const std::vector<std::string>& tokens) const;
 
+
+    // Convert a time token value of the form beat.position.resolution, in ticks.
+
+    // This method is used to decode time tokens such as *Duration*, *TimeShift* or
+    // *Rest*.
+
+    // :param token_duration: Duration / TimeShift token value.
+    // :param ticks_per_beat: number of ticks in a beat. This depends on the current
+    //     time signature, and is equal to the Score's time division if the denominator
+    //     is 4 (quarter).
+    // :return: the duration / time-shift in ticks.
+    std::int32_t _time_token_to_ticks(const std::string& token_duration, std::int32_t ticks_per_beat);
+    std::int32_t _time_token_to_ticks(std::int32_t beat, std::int32_t pos, std::int32_t res, std::int32_t ticks_per_beat);
 
 
     // Convert tokens (:class:`miditok.TokSequence`) into a ``symusic.Score``.
@@ -80,16 +152,42 @@ protected:
 public:
     MidiTokenizer(const std::string& filename)
     {
-        // try 
-        // {
-            loadFromJson(filename);
-
-        // }
-        // catch (const std::exception& e)
-        // {
-        //     std::cout << "EXCEPTION: " << e.what() << std::endl;
-        // }
+        loadFromJson(filename);
             
+        // Time Signatures
+        // Need to be set before creating duration values/tokens.
+        time_signatures = {TIME_SIGNATURE};
+        if (bUseTimeSignatures)
+        {
+            time_signatures = __create_time_signatures();
+        }
+
+        _tpb_per_ts = __create_tpb_per_ts();
+
+        time_division = _tpb_per_ts[TIME_SIGNATURE.second];
+
+
+        // Durations
+        // Usages:
+        // Duration: tpb --> np.array (ticks) to get the closest;
+        // Duration/TimeShift/Rest: ticks + tpb --> token (str);
+        // Duration/TimeShift/Rest: token + tpb --> ticks (int);
+        durations = _create_durations_tuples();
+        _tpb_tokens_to_ticks = __create_tpb_tokens_to_ticks();
+
+        // Rests
+        // _tpb_rests_to_ticks = __create_tpb_tokens_to_ticks(true);
+
+    }
+
+    int max_num_pos_per_beat() const
+    {
+        int max = 0;
+        for (const auto& [k, v] : _beat_res)
+        {
+            max = std::max(max, v);
+        }
+        return max;
     }
 
     // Decode a single token
@@ -159,6 +257,18 @@ public:
         return startBy[i] == '\0';
     }
 
+    static std::string getUniqueValueStr(const std::string& str)
+    {
+        auto it = std::find(str.begin(), str.end(), '_');
+        std::int32_t typeSize = std::int32_t(it - str.begin());
+        return str.substr(it - str.begin()+1, str.size() - typeSize-1);
+    }
+
+    static std::int32_t getUniqueValueInt(const std::string& str)
+    {
+        return std::stoi(getUniqueValueStr(str));
+    }
+
     bool isBarNone(std::int32_t token)
     {
         const std::string& str = __vocab_base_inv.at(token);
@@ -171,6 +281,18 @@ public:
         return startBy(str.c_str(), "Bar_None");
     }
 
+    bool isTimeShift(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "TimeShift_");
+    }
+
+    std::string getTimeShiftValue(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return getUniqueValueStr(str);
+    }
+
     bool isPosition(std::int32_t token)
     {
         const std::string& str = __vocab_base_inv.at(token);
@@ -180,13 +302,7 @@ public:
     std::int32_t getPositionValue(std::int32_t token)
     {
         const std::string& str = __vocab_base_inv.at(token);
-
-        auto it = std::find(str.begin(), str.end(), '_');
-        std::int32_t typeSize = std::int32_t(it - str.begin());
-        // std::string type = str.substr(0, typeSize);
-        std::string value = str.substr(it - str.begin()+1, str.size() - typeSize-1);
-
-        return std::stoi(value);
+        return getUniqueValueInt(str);
     }
 
     bool isPitch(std::int32_t token)
@@ -198,13 +314,7 @@ public:
     std::int32_t getPitchValue(std::int32_t token)
     {
         const std::string& str = __vocab_base_inv.at(token);
-
-        auto it = std::find(str.begin(), str.end(), '_');
-        std::int32_t typeSize = std::int32_t( it - str.begin());
-        // std::string type = str.substr(0, typeSize);
-        std::string value = str.substr(it - str.begin()+1, str.size() - typeSize-1);
-
-        return std::stoi(value);
+        return getUniqueValueInt(str);
     }
 
     bool isDuration(std::int32_t token)
@@ -216,13 +326,7 @@ public:
     std::int32_t getDurationValue(std::int32_t token)
     {
         const std::string& str = __vocab_base_inv.at(token);
-
-        auto it = std::find(str.begin(), str.end(), '_');
-        std::int32_t typeSize = std::int32_t( it - str.begin());
-        // std::string type = str.substr(0, typeSize);
-        std::string value = str.substr(it - str.begin()+1, str.size() - typeSize-1);
-
-        return std::stoi(value);
+        return getUniqueValueInt(str);
     }
 
     bool isVelocity(std::int32_t token)
@@ -234,16 +338,62 @@ public:
     std::int32_t getVelocityValue(std::int32_t token)
     {
         const std::string& str = __vocab_base_inv.at(token);
-
-        auto it = std::find(str.begin(), str.end(), '_');
-        std::int32_t typeSize = std::int32_t( it - str.begin());
-        // std::string type = str.substr(0, typeSize);
-        std::string value = str.substr(it - str.begin()+1, str.size() - typeSize-1);
-
-        return std::stoi(value);
+        return getUniqueValueInt(str);
     }
 
+    bool isRest(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "Rest_");
+    }
 
+    std::string getRestValue(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return getUniqueValueStr(str);
+    }
+
+    bool isProgram(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "Program_");
+    }
+
+    std::int32_t getProgramValue(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return getUniqueValueInt(str);
+    }
+
+    bool isTempo(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "Tempo_");
+    }
+
+    bool isTimeSig(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "TimeSig_");
+    }
+
+    bool isPedal(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "Pedal_");
+    }
+
+    bool isPedalOff(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "PedalOff_");
+    }
+
+    bool isPitchBend(std::int32_t token)
+    {
+        const std::string& str = __vocab_base_inv.at(token);
+        return startBy(str.c_str(), "PitchBend_");
+    }
 
     void addTokensStartingByPosition(RangeGroup& outRangeGroup);
     void addTokensStartingByBarNone(RangeGroup& outRangeGroup);
@@ -253,6 +403,16 @@ public:
 
 
     const std::string& decodedTokenToString(int32_t decodedToken);
+
+    bool useVelocities() const
+    {
+        return bUseVelocities;
+    }
+
+    bool useDuration() const
+    {
+        return bUseDuration;
+    }
 };
 
 

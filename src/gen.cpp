@@ -101,6 +101,27 @@ void generator_getNextTokens_greedy(const SearchArgs& args)
     MusicGenerator::getNextTokens_greedy(args);
 }
 
+void generator_setNbAttentionHeads(MusicGeneratorHandle generator, std::int64_t nbAttentionHeads)
+{
+    generator->modelInfo.num_attention_heads = nbAttentionHeads;
+}
+void generator_setHiddenSize(MusicGeneratorHandle generator, std::int64_t hiddenSize)
+{
+    generator->modelInfo.hidden_size = hiddenSize;
+}
+void generator_setNbLayers(MusicGeneratorHandle generator, std::int64_t nbLayers)
+{
+    generator->modelInfo.num_layer = nbLayers;
+}
+void generator_setVocabSize(MusicGeneratorHandle generator, std::int64_t vocabSize)
+{
+    generator->modelInfo.vocab_size = vocabSize;
+}
+void generator_setNbMaxPositions(MusicGeneratorHandle generator, std::int64_t nbMaxPositions)
+{
+    generator->modelInfo.nbMaxPositions = nbMaxPositions;
+}
+
 RedirectorHandle createRedirector()
 {
     return new Redirector();

@@ -39,6 +39,17 @@ extern "C"
     API_EXPORT void generator_getNextTokens_greedy(const SearchArgs& args);
 }
 
+// ModelInfo
+extern "C" 
+{
+    API_EXPORT void generator_setNbAttentionHeads(MusicGeneratorHandle generator, std::int64_t nbAttentionHeads);
+    API_EXPORT void generator_setHiddenSize(MusicGeneratorHandle generator, std::int64_t hiddenSize);
+    API_EXPORT void generator_setNbLayers(MusicGeneratorHandle generator, std::int64_t nbLayers);
+    API_EXPORT void generator_setVocabSize(MusicGeneratorHandle generator, std::int64_t vocabSize);
+    API_EXPORT void generator_setNbMaxPositions(MusicGeneratorHandle generator, std::int64_t nbMaxPositions);
+}
+
+
 // Redirector
 extern "C" 
 {

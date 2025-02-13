@@ -122,6 +122,27 @@ void generator_setNbMaxPositions(MusicGeneratorHandle generator, std::int64_t nb
     generator->modelInfo.nbMaxPositions = nbMaxPositions;
 }
 
+std::int64_t generator_getNbAttentionHeads(MusicGeneratorHandle generator)
+{
+    return generator->modelInfo.num_attention_heads;
+}
+std::int64_t generator_getHiddenSize(MusicGeneratorHandle generator)
+{
+    return generator->modelInfo.hidden_size;
+}
+std::int64_t generator_getNbLayers(MusicGeneratorHandle generator)
+{
+    return generator->modelInfo.num_layer;
+}
+std::int64_t generator_getVocabSize(MusicGeneratorHandle generator)
+{
+    return generator->modelInfo.vocab_size;
+}
+std::int64_t generator_getNbMaxPositions(MusicGeneratorHandle generator)
+{
+    return generator->modelInfo.nbMaxPositions;
+}
+
 RedirectorHandle createRedirector()
 {
     return new Redirector();
@@ -235,6 +256,15 @@ const char* tokenizer_decodedTokenToString(MidiTokenizerHandle tokenizer, std::i
     return str.c_str();
 }
 
+std::int32_t tokenizer_getNbEncodedTokens(MidiTokenizerHandle tokenizer)
+{
+    return tokenizer->getNbEncodedTokens();
+}
+
+std::int32_t tokenizer_getNbDecodedTokens(MidiTokenizerHandle tokenizer)
+{
+    return tokenizer->getNbDecodedTokens();
+}
 
 BatchHandle createBatch()
 {

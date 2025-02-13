@@ -238,9 +238,14 @@ public:
 
     bool is_trained() const;
 
-    std::int32_t getNbTokens() const
+    std::int32_t getNbDecodedTokens() const
     {
         return static_cast<std::int32_t>(_vocab_base.size());
+    }
+
+    std::int32_t getNbEncodedTokens() const
+    {
+        return static_cast<std::int32_t>(_vocab_learned_bytes_to_tokens.size());
     }
 
 public:

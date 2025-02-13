@@ -95,62 +95,62 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
     OrtAllocator *allocator;
     api->GetAllocatorWithDefaultOptions(&allocator);
 
-    for (size_t i = 0; i < num_inputs; i++) {
-        char *name;
-        api->SessionGetInputName(*session, i, allocator, &name);
-        printf("Input name: %s\n", name);
+    // for (size_t i = 0; i < num_inputs; i++) {
+    //     char *name;
+    //     api->SessionGetInputName(*session, i, allocator, &name);
+    //     printf("Input name: %s\n", name);
 
-        // Inspect input dimensions (for vocab_size, etc.)
-        auto typeInfo = session->GetInputTypeInfo(i);
-        auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
+    //     // Inspect input dimensions (for vocab_size, etc.)
+    //     auto typeInfo = session->GetInputTypeInfo(i);
+    //     auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
 
-        for (auto i : shapeInfo.GetShape())
-        {
-            std::cout << i << " ";
-        }
-        std::cout << std::endl;
+    //     for (auto i : shapeInfo.GetShape())
+    //     {
+    //         std::cout << i << " ";
+    //     }
+    //     std::cout << std::endl;
 
-        api->AllocatorFree(allocator, name);
-    }
+    //     api->AllocatorFree(allocator, name);
+    // }
 
 
 
-    std::cout << "ov" <<session->GetOverridableInitializerCount() << std::endl;
+    // std::cout << "ov" <<session->GetOverridableInitializerCount() << std::endl;
 
-    for (int i = 0; i < session->GetOverridableInitializerCount(); i++)
-    {
-        auto str = session->GetOverridableInitializerNameAllocated(i, allocator);
-        auto typeInfo = session->GetOverridableInitializerTypeInfo(i);
-        auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
+    // for (int i = 0; i < session->GetOverridableInitializerCount(); i++)
+    // {
+    //     auto str = session->GetOverridableInitializerNameAllocated(i, allocator);
+    //     auto typeInfo = session->GetOverridableInitializerTypeInfo(i);
+    //     auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
 
-        for (auto i : shapeInfo.GetShape())
-        {
-            std::cout << i << "dfrgtftdrsertf";
-        }
+    //     for (auto i : shapeInfo.GetShape())
+    //     {
+    //         std::cout << i << "dfrgtftdrsertf";
+    //     }
 
-        std::cout << str << std::endl;
+    //     std::cout << str << std::endl;
 
-    }
+    // }
 
-    size_t num_outputs = session->GetOutputCount();
-    printf("Number of outputs: %zu\n", num_outputs);
-    for (size_t i = 0; i < num_outputs; i++) {
-        char *name;
-        api->SessionGetInputName(*session, i, allocator, &name);
-        printf("Input name: %s\n", name);
+    // size_t num_outputs = session->GetOutputCount();
+    // printf("Number of outputs: %zu\n", num_outputs);
+    // for (size_t i = 0; i < num_outputs; i++) {
+    //     char *name;
+    //     api->SessionGetInputName(*session, i, allocator, &name);
+    //     printf("Input name: %s\n", name);
 
-        // Inspect input dimensions (for vocab_size, etc.)
-        auto typeInfo = session->GetInputTypeInfo(i);
-        auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
+    //     // Inspect input dimensions (for vocab_size, etc.)
+    //     auto typeInfo = session->GetInputTypeInfo(i);
+    //     auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
 
-        for (auto i : shapeInfo.GetShape())
-        {
-            std::cout << i << " ";
-        }
-        std::cout << std::endl;
+    //     for (auto i : shapeInfo.GetShape())
+    //     {
+    //         std::cout << i << " ";
+    //     }
+    //     std::cout << std::endl;
 
-        api->AllocatorFree(allocator, name);
-    }
+    //     api->AllocatorFree(allocator, name);
+    // }
 
 
 
@@ -162,11 +162,11 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
     // modelInfo.hidden_size = 512;
     // modelInfo.num_layer = 8;
 
-    modelInfo.num_attention_heads = 4;
-    modelInfo.hidden_size = 256;
-    modelInfo.num_layer = 6;
-    modelInfo.vocab_size = 500;
-    modelInfo.nbMaxPositions = 512;
+    // modelInfo.num_attention_heads = 4;
+    // modelInfo.hidden_size = 256;
+    // modelInfo.num_layer = 6;
+    // modelInfo.vocab_size = 500;
+    // modelInfo.nbMaxPositions = 512;
 
     // Input Labels
     modelInfo.inputIdLabel = "input_ids";
@@ -447,7 +447,7 @@ bool MusicGenerator::generate(RunInstance& input, const char*& outError)
     }
     catch(const Ort::Exception& e)
     {
-        std::string errorMsg;
+        static std::string errorMsg;
         errorMsg += "Error occurred: " + std::string(e.what());
         errorMsg += "Error code: " + std::to_string(e.GetOrtErrorCode());
         std::cout << errorMsg << std::endl;

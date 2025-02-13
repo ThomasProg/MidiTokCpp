@@ -47,6 +47,12 @@ extern "C"
     API_EXPORT void generator_setNbLayers(MusicGeneratorHandle generator, std::int64_t nbLayers);
     API_EXPORT void generator_setVocabSize(MusicGeneratorHandle generator, std::int64_t vocabSize);
     API_EXPORT void generator_setNbMaxPositions(MusicGeneratorHandle generator, std::int64_t nbMaxPositions);
+
+    API_EXPORT std::int64_t generator_getNbAttentionHeads(MusicGeneratorHandle generator);
+    API_EXPORT std::int64_t generator_getHiddenSize(MusicGeneratorHandle generator);
+    API_EXPORT std::int64_t generator_getNbLayers(MusicGeneratorHandle generator);
+    API_EXPORT std::int64_t generator_getVocabSize(MusicGeneratorHandle generator);
+    API_EXPORT std::int64_t generator_getNbMaxPositions(MusicGeneratorHandle generator);
 }
 
 
@@ -79,6 +85,9 @@ extern "C"
     API_EXPORT void tokenizer_addTokensStartingByDuration(MidiTokenizerHandle tokenizer, RangeGroupHandle outRangeGroup);
 
     API_EXPORT const char* tokenizer_decodedTokenToString(MidiTokenizerHandle tokenizer, std::int32_t decodedToken);
+
+    API_EXPORT std::int32_t tokenizer_getNbEncodedTokens(MidiTokenizerHandle tokenizer);
+    API_EXPORT std::int32_t tokenizer_getNbDecodedTokens(MidiTokenizerHandle tokenizer);
 }
 
 

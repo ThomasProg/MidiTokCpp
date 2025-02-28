@@ -6,6 +6,7 @@
 #include <onnxruntime_cxx_api.h>
 #include "midiTokenizer.hpp"
 #include "fwd.h"
+#include "utilities.hpp"
 
 template<typename T>
 void PrintTensorContent(const Ort::Value& value) {
@@ -141,15 +142,15 @@ public:
     void bindInputIds(const ModelInfo& modelInfo);
     void bindPositionIds(const ModelInfo& modelIngetfo);
     void bindAttentionMask(const ModelInfo& modelInfo);
-    void bindPasts(const ModelInfo& modelInfo);
+    void bindPasts(const ModelInfo& modelInfo, CppResult& outResult);
 
     // Bind Outputs
-    void bindPresents(const ModelInfo& modelInfo);
+    void bindPresents(const ModelInfo& modelInfo, CppResult& outResult);
     void bindLogits(const ModelInfo& modelInfo);
 
-    void bindInputs(const ModelInfo& modelInfo);
-    void bindOutputs(const ModelInfo& modelInfo);
-    void bind(const ModelInfo& modelInfo);
+    void bindInputs(const ModelInfo& modelInfo, CppResult& outResult);
+    void bindOutputs(const ModelInfo& modelInfo, CppResult& outResult);
+    void bind(const ModelInfo& modelInfo, CppResult& outResult);
 
     std::int64_t getNbBatches() const
     {
@@ -201,10 +202,10 @@ public:
     static void getNextTokens_greedy(const struct SearchArgs& args);
     void getNextTokens(RunInstance& runInstance, const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
 
-    void preGenerate(RunInstance& input);
+    void preGenerate(RunInstance& input, CppResult& outResult);
     // outError is alloced with new(), and can leak
-    bool generate(RunInstance& input, const char*& outError);
-    void postGenerate(RunInstance& input);
+    void generate(RunInstance& input, CppResult& outResult);
+    void postGenerate(RunInstance& input, CppResult& outResult);
 
     // Generate the next token given the input.
     // Internally calls preRun() -> run() -> postRun()

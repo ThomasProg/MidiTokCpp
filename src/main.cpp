@@ -205,10 +205,11 @@ int main()
 
     RunInstance input = generator.generateInput(std::vector<RunInstance::DataType>(std::begin(input_ids), std::end(input_ids)));
 
+
     for (int i = 0; i < 50; i++)
     {
-        const char* outError;
-        generator.generate(input, outError);
+        CppResult res;
+        generator.generate(input, res);
     }
 
     std::cout << "Out Encoded Tokens" << std::endl;

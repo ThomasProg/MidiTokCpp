@@ -47,16 +47,6 @@ size_t Batch::size() const
     return inputIds.size();
 }
 
-
-std::wstring widen( const std::string& str )
-{
-    std::wostringstream wstm ;
-    const std::ctype<wchar_t>& ctfacet = std::use_facet<std::ctype<wchar_t>>(wstm.getloc()) ;
-    for( size_t i=0 ; i<str.size() ; ++i ) 
-              wstm << ctfacet.widen( str[i] ) ;
-    return wstm.str() ;
-}
-
 std::unique_ptr<Ort::Env> MusicGenerator::createOnnxEnv(bool useLogging)
 {
     if (useLogging)
@@ -368,8 +358,13 @@ void RunInstance::bindAttentionMask(const ModelInfo& modelInfo)
 {
     io_binding.BindInput(modelInfo.attentionMaskLabel.c_str(), attentionMaskTensor);
 }
-void RunInstance::bindPasts(const ModelInfo& modelInfo)
+void RunInstance::bindPasts(const ModelInfo& modelInfo, CppResult& outResult)
 {
+    if (modelInfo.pastLabels.size() != modelInfo.num_layer || pastTensors.size() != modelInfo.num_layer)
+    {
+        outResult = CppResult("(modelInfo.pastLabels.size() != modelInfo.num_layer || pastTensors.size() != modelInfo.num_layer); make sure the setup is correct");
+    }
+
     for (std::int32_t i = 0; i < modelInfo.num_layer; i++)
     {
         if (i < pastTensors.size())
@@ -377,8 +372,13 @@ void RunInstance::bindPasts(const ModelInfo& modelInfo)
     }
 }
 
-void RunInstance::bindPresents(const ModelInfo& modelInfo)
+void RunInstance::bindPresents(const ModelInfo& modelInfo, CppResult& outResult)
 {
+    if (modelInfo.presentLabels.size() < modelInfo.num_layer || presentTensors.size() != modelInfo.num_layer)
+    {
+        outResult = CppResult("(modelInfo.presentLabels.size() < modelInfo.num_layer || presentTensors.size() != modelInfo.num_layer); make sure the setup is correct");
+    }
+
     for (std::int32_t i = 0; i < modelInfo.num_layer; i++)
     {
         io_binding.BindOutput(modelInfo.presentLabels[i].c_str(), presentTensors[i]);
@@ -389,22 +389,22 @@ void RunInstance::bindLogits(const ModelInfo& modelInfo)
     io_binding.BindOutput(modelInfo.logitsLabel.c_str(), logitsTensor);
 }
 
-void RunInstance::bindInputs(const ModelInfo& modelInfo)
+void RunInstance::bindInputs(const ModelInfo& modelInfo, CppResult& outResult)
 {
     bindInputIds(modelInfo);
     bindPositionIds(modelInfo);
     bindAttentionMask(modelInfo);
-    bindPasts(modelInfo);
+    bindPasts(modelInfo, outResult);
 }
-void RunInstance::bindOutputs(const ModelInfo& modelInfo)
+void RunInstance::bindOutputs(const ModelInfo& modelInfo, CppResult& outResult)
 {
     bindLogits(modelInfo);
-    bindPresents(modelInfo);
+    bindPresents(modelInfo, outResult);
 }
-void RunInstance::bind(const ModelInfo& modelInfo)
+void RunInstance::bind(const ModelInfo& modelInfo, CppResult& outResult)
 {
-    bindInputs(modelInfo);
-    bindOutputs(modelInfo);
+    bindInputs(modelInfo, outResult);
+    bindOutputs(modelInfo, outResult);
 }
 
 void RunInstance::reset()
@@ -414,45 +414,56 @@ void RunInstance::reset()
 }
 
 
-void MusicGenerator::preGenerate(RunInstance& input)
+void MusicGenerator::preGenerate(RunInstance& input, CppResult& outResult)
 {
     if (input.subsequentGenerationIndex == 0)
     {
         input.seqLength = input.batches[0]->inputIds.size();
-        assert(input.seqLength <= input.maxInputLength);
+        if (input.seqLength > input.maxInputLength)
+        {
+            outResult = CppResult("assert(input.seqLength <= input.maxInputLength) is false"); 
+        }
 
-        input.createInputIdsTensor(modelInfo);
-        input.createPositionIdsTensor(modelInfo);
-        input.createAttentionMaskTensor(modelInfo, input.seqLength);
-        input.createPastTensors(modelInfo, 0);
+        if (modelInfo.nbMaxPositions == 0)
+        {
+            outResult = CppResult("assert(modelInfo.nbMaxPositions != 0) is false"); 
+        }
 
-        input.updateInputIdsTensor(modelInfo);
-        input.updatePositionIdsTensor(modelInfo);
-        input.updateAttentionMaskTensor(modelInfo);
-        
-        input.createLogitsTensor(modelInfo, input.seqLength);
-        input.createPresentTensors(modelInfo, input.seqLength);
+        try
+        {
+            input.createInputIdsTensor(modelInfo);
+            input.createPositionIdsTensor(modelInfo);
+            input.createAttentionMaskTensor(modelInfo, input.seqLength);
+            input.createPastTensors(modelInfo, 0);
 
-        input.bind(modelInfo);
+            input.updateInputIdsTensor(modelInfo);
+            input.updatePositionIdsTensor(modelInfo);
+            input.updateAttentionMaskTensor(modelInfo);
+            
+            input.createLogitsTensor(modelInfo, input.seqLength);
+            input.createPresentTensors(modelInfo, input.seqLength);
+
+            input.bind(modelInfo, outResult);
+        }
+        catch (const std::exception& e)
+        {
+            outResult = CppResult(e.what());
+        }
     }
 }
-bool MusicGenerator::generate(RunInstance& input, const char*& outError)
+void MusicGenerator::generate(RunInstance& input, CppResult& outResult)
 {
     try 
     {
-        // std::cout << "=============" << std::endl;
         session->Run(Ort::RunOptions{nullptr}, input.io_binding);
-        outError = nullptr;
-        return true;
     }
     catch(const Ort::Exception& e)
     {
-        static std::string errorMsg;
+        std::string errorMsg;
         errorMsg += "Error occurred: " + std::string(e.what());
         errorMsg += "Error code: " + std::to_string(e.GetOrtErrorCode());
         std::cout << errorMsg << std::endl;
-        outError = errorMsg.c_str();
-        return false;
+        outResult = CppResult(errorMsg.c_str());
     }
 }
 
@@ -620,7 +631,7 @@ std::int64_t computeMultiDimIdx(std::int64_t* shape, std::int64_t* indices)
         + indices[0] * shape[4] * shape[3] * shape[2] * shape[1];
 }
 
-void MusicGenerator::postGenerate(RunInstance& input)
+void MusicGenerator::postGenerate(RunInstance& input, CppResult& outResult)
 {
     std::int64_t nbBatches = input.getNbBatches(); 
 
@@ -676,8 +687,8 @@ void MusicGenerator::postGenerate(RunInstance& input)
         input.pastTensors = std::move(input.presentTensors);
         input.createPresentTensors(modelInfo, input.seqLength);
 
-        input.bindPasts(modelInfo);
-        input.bindPresents(modelInfo);
+        input.bindPasts(modelInfo, outResult);
+        input.bindPresents(modelInfo, outResult);
     }
     else
     {
@@ -690,7 +701,7 @@ void MusicGenerator::postGenerate(RunInstance& input)
             std::swap(input.presentTensors, input.pastTensors);
             input.createPresentTensors(modelInfo, input.maxInputLength-1);
             std::swap(input.presentTensors, input.pastTensors);
-            input.bindPasts(modelInfo);
+            input.bindPasts(modelInfo, outResult);
         }
 
         // remove the oldest "dim" of input.pastTensors when reaching 512 to prevent overloading  
@@ -779,12 +790,12 @@ void RunInstance::printOutputTensors()
 
 void MusicGenerator::generateNextToken(RunInstance& input)
 {
-    preGenerate(input);
+    CppResult outResult;
+    preGenerate(input, outResult);
 
-    const char* errorMsg;
-    generate(input, errorMsg);
+    generate(input, outResult);
 
-    postGenerate(input);
+    postGenerate(input, outResult);
 }
 
 

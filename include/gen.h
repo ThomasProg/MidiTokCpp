@@ -2,6 +2,7 @@
 
 #include "fwd.h"
 #include "note.h"
+#include "utilities.h"
 
 extern "C"
 {
@@ -24,9 +25,9 @@ extern "C"
     API_EXPORT void generator_loadOnnxModel(MusicGeneratorHandle generator, EnvHandle env, const char* path);
     API_EXPORT void generator_generateNextToken(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
 
-    API_EXPORT void generator_preGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
-    API_EXPORT bool generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance, const char** outError);
-    API_EXPORT void generator_postGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+    API_EXPORT CResult generator_preGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+    API_EXPORT CResult generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+    API_EXPORT CResult generator_postGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
 
     API_EXPORT void generator_setConfig(MusicGeneratorHandle generator, int64_t num_attention_heads, int64_t hidden_size, int64_t num_layer);
 
@@ -38,6 +39,31 @@ extern "C"
     API_EXPORT void generator_getNextTokens_greedyPreFiltered(const SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken);
     API_EXPORT void generator_getNextTokens_greedy(const SearchArgs& args);
 }
+
+// GPT / MODEL
+extern "C" 
+{
+    // API_EXPORT MusicGeneratorHandle createGPTModel();
+    // API_EXPORT void destroyModel(MusicGeneratorHandle musicGen);
+
+    // API_EXPORT void generator_loadOnnxModel(MusicGeneratorHandle generator, EnvHandle env, const char* path);
+    // API_EXPORT void generator_generateNextToken(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+
+    // API_EXPORT CResult generator_preGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+    // API_EXPORT CResult generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+    // API_EXPORT CResult generator_postGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance);
+
+    // API_EXPORT void generator_setConfig(MusicGeneratorHandle generator, int64_t num_attention_heads, int64_t hidden_size, int64_t num_layer);
+
+    // API_EXPORT RunInstance* generator_createRunInstance(MusicGeneratorHandle generator); 
+
+
+    // // static
+    // API_EXPORT void generator_getNextTokens_greedyFiltered(const SearchArgs& args, bool (*filter)(std::int32_t token, void* data), void* data);
+    // API_EXPORT void generator_getNextTokens_greedyPreFiltered(const SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken);
+    // API_EXPORT void generator_getNextTokens_greedy(const SearchArgs& args);
+}
+
 
 // ModelInfo
 extern "C" 

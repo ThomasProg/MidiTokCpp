@@ -56,22 +56,28 @@ void generator_generateNextToken(MusicGeneratorHandle generator, RunInstanceHand
     generator->generateNextToken(*runInstance);
 }
 
-void generator_preGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
+CResult generator_preGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
 {
     assert(generator != nullptr && runInstance != nullptr);
-    generator->preGenerate(*runInstance);   
+    CppResult res;
+    generator->preGenerate(*runInstance, res);
+    return res.Release();   
 }
 
-bool generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance, const char** outError)
-{
-    assert(generator != nullptr && runInstance != nullptr && outError != nullptr);
-    return generator->generate(*runInstance, *outError);
-}
-
-void generator_postGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
+CResult generator_generate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
 {
     assert(generator != nullptr && runInstance != nullptr);
-    generator->postGenerate(*runInstance);
+    CppResult res;
+    generator->generate(*runInstance, res);
+    return res.Release();   
+}
+
+CResult generator_postGenerate(MusicGeneratorHandle generator, RunInstanceHandle runInstance)
+{
+    assert(generator != nullptr && runInstance != nullptr);
+    CppResult res;
+    generator->postGenerate(*runInstance, res);
+    return res.Release();
 }
 
 

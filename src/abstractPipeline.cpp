@@ -12,7 +12,7 @@ CResult AOnnxModel::loadOnnxPipeline(const Ort::Env& env, const std::string& mod
 
     try 
     {
-        session = std::make_unique<Ort::Session>(env, widen(modelPath).c_str(), session_options);
+        session = MakeUnique<Ort::Session>(env, widen(modelPath).c_str(), session_options);
 
         return onPostOnnxLoad();
     }

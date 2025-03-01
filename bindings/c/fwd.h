@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 #if defined(_WIN32) || defined(_WIN64)
     #ifdef BUILD_STATIC
@@ -22,6 +22,7 @@
     #define ASSERT_CPP_COMPILATION static_assert(false, "This code is not being compiled as C++");
 #endif
 
+#ifdef __cplusplus
 namespace Ort
 {
     struct Env;
@@ -53,6 +54,22 @@ using MidiConverterHandle = MIDIConverter*;
 using BatchHandle = Batch*;
 using RangeGroupHandle = RangeGroup*;
 
-using DataType = std::int32_t;
+using DataType = int32_t;
 
 using TSearchStrategy = void (*)(const struct SearchArgs& args, void* searchStrategyData);
+
+#else
+typedef struct OrtEnvOpaque* EnvHandle;
+typedef struct MidiTokenizerOpaque* MidiTokenizerHandle;
+typedef struct MusicGeneratorOpaque* MusicGeneratorHandle;
+typedef struct RedirectorOpaque* RedirectorHandle;
+typedef struct RunInstanceOpaque* RunInstanceHandle;
+typedef struct TokenSequenceOpaque* TokenSequenceHandle;
+typedef struct MIDIConverterOpaque* MidiConverterHandle;
+typedef struct BatchOpaque* BatchHandle;
+typedef struct RangeGroupOpaque* RangeGroupHandle;
+
+typedef int32_t DataType;
+
+typedef void (*TSearchStrategy)(const struct SearchArgs& args, void* searchStrategyData);
+#endif

@@ -88,7 +88,7 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
 
     try 
     {
-        session = std::make_unique<Ort::Session>(env, widen(modelPath).c_str(), session_options);
+        session = MakeUnique<Ort::Session>(env, widen(modelPath).c_str(), session_options);
     }
     catch(const Ort::Exception& e)
     {

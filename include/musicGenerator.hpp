@@ -194,9 +194,6 @@ struct ModelInfo
 
 class MusicGenerator : public AOnnxModel
 {
-private:
-    std::unique_ptr<Ort::Session> session;
-
 public:
     ModelInfo modelInfo;
 

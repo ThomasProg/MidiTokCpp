@@ -3,6 +3,8 @@
 #include "fwd.h"
 #include "note.h"
 #include "utilities.h"
+#include "range.h"
+#include <cstdint>
 
 #ifdef __cplusplus
 extern "C"

@@ -9,7 +9,7 @@ class APipeline;
 
 // A model can be loaded before the pipeline.
 // That way, depending on metadata, we can decide automatically what pipeline to use.
-class AModel
+class API_EXPORT AModel
 {
 public:
     virtual ~AModel() = default;
@@ -17,17 +17,19 @@ public:
     virtual APipeline* CreatePipeline() = 0;
 };
 
-class AOnnxModel : public AModel
+class API_EXPORT AOnnxModel : public AModel
 {
+protected:
+    UniquePtr<Ort::Session> session; // TODO : only put accessor instead?
+
 public:
-    std::unique_ptr<Ort::Session> session;
     CResult loadOnnxPipeline(const Ort::Env& env, const std::string& modelPath);
 
     virtual CResult onPostOnnxLoad() { return CResult(); }
 };
 
 // Inference Pipeline
-class APipeline
+class API_EXPORT APipeline
 {
 public:
     virtual void preGenerate(CppResult& outResult) = 0;

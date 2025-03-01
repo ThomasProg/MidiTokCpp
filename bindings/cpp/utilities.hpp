@@ -7,7 +7,7 @@
 // wraps utilities.h
 // can be included from outside libraries
 
-class CppStr
+class API_EXPORT CppStr
 {
 protected:
     CStr str;
@@ -70,7 +70,7 @@ inline std::wstring widen( const std::string& str )
 }
 
 
-class CppResult
+class API_EXPORT CppResult
 {
 public:
     CResult result;
@@ -129,3 +129,66 @@ public:
         return result.message.str;
     }
 };
+
+template<typename T>
+class API_EXPORT UniquePtr
+{
+    T* ptr = nullptr;
+
+public:
+    T* operator->()
+    {
+        return ptr;
+    }
+
+    const T* operator->() const
+    {
+        return ptr;
+    }
+
+    T& operator*()
+    {
+        return *ptr;
+    }
+
+    const T& operator*() const
+    {
+        return *ptr;
+    }
+
+
+    UniquePtr() = default;
+    UniquePtr(T* rhs) : ptr(rhs)
+    {
+
+    }
+
+    UniquePtr<T>& operator=(const UniquePtr<T>& rhs) = delete;
+    UniquePtr<T>& operator=(UniquePtr<T>&& rhs)
+    {
+        if (ptr != nullptr)
+        {
+            delete ptr;
+        }
+
+        ptr = rhs.ptr;
+        rhs.ptr = nullptr;
+
+        return *this;
+    }
+
+    ~UniquePtr()
+    {
+        if (ptr != nullptr)
+        {
+            delete ptr;
+        }
+    }
+};
+
+template <typename T, typename... Args> 
+UniquePtr<T> MakeUnique(Args&&... args)
+{
+    return UniquePtr<T>(new T(std::forward<Args>(args)...));
+}
+

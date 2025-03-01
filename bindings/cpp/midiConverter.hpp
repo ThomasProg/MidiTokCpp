@@ -6,7 +6,7 @@
 #include "note.h"
 
 
-class MIDIConverter
+class API_EXPORT MIDIConverter
 {
 public:
     MidiTokenizerHandle tokenizerHandle;
@@ -24,7 +24,7 @@ public:
 
 
 // miditok/tokenizations/remi.py/_tokens_to_score()
-class REMIConverter: public MIDIConverter 
+class API_EXPORT REMIConverter: public MIDIConverter 
 {
 public:
     std::int32_t currentTick = 0;
@@ -41,7 +41,7 @@ public:
 
 
 // miditok/tokenizations/tsd.py/_tokens_to_score()
-class TSDConverter: public MIDIConverter 
+class API_EXPORT TSDConverter: public MIDIConverter 
 {
 public:
     std::int32_t currentTick = 0;

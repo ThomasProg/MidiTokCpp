@@ -21,7 +21,7 @@ public:
 };
 
 // Singleton Accessor
-class ModelBuilderManager
+class API_EXPORT ModelBuilderManager
 {
 public:
     void registerModelBuilder(const char* modelType, ModelBuilder*&& modelBuilder);

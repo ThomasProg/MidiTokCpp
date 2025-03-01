@@ -13,7 +13,7 @@ static inline bool isColliding(const Range& a, const Range& b)
 // (-5;-1)(2;4) (6;10) (16;19)
 // Ranges are merged
 // (0;4) (5;15) -> (0;15)
-class API_EXPORT RangeGroup
+class RangeGroup
 {
     // Sorted
     std::vector<Range> ranges;
@@ -21,21 +21,21 @@ class API_EXPORT RangeGroup
 public:
     // Uses dichotomy search
     // Returns an index
-    size_t findLastRangeBeforeX(int32_t x, size_t beginIndex, size_t endIndex) const;
+    std::size_t findLastRangeBeforeX(std::int32_t x, std::size_t beginIndex, std::size_t endIndex) const;
 
-    size_t findLastRangeBeforeX(int32_t x) const
+    std::size_t findLastRangeBeforeX(std::int32_t x) const
     {
         return findLastRangeBeforeX(x, 0, ranges.size()-1);
     }
 
-    bool findRange(int32_t x, size_t beginIndex, size_t endIndex, size_t& foundIndex) const;
+    bool findRange(std::int32_t x, std::size_t beginIndex, std::size_t endIndex, std::size_t& foundIndex) const;
 
-    inline bool findRange(int32_t x, size_t& foundIndex) const
+    inline bool findRange(std::int32_t x, std::size_t& foundIndex) const
     {
         return findRange(x, 0, ranges.size()-1, foundIndex);
     }
 
-    inline void add(int32_t x)
+    inline void add(std::int32_t x)
     {
         addRange({x,x});
     }

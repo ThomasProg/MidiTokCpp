@@ -322,7 +322,7 @@ std::vector<std::pair<int, int>> MidiTokenizer::__create_time_signatures() const
         {
             throw std::runtime_error("The beat resolution in time signature must be a power 2.");
         }
-        float v = std::log2(beat_res);
+        double v = std::log2(beat_res);
         if (v - (std::floor(v) < 0.001))
         {
             throw std::runtime_error("The beat resolution in time signature must be a power 2.");

@@ -169,10 +169,14 @@ struct ModelInfo
 {
     // @TODO : load from config
     int64_t num_attention_heads; // n_head
+    int64_t ctx; // n_embd
     int64_t hidden_size; // n_embd
     int64_t num_layer; // n_layer
     int64_t vocab_size; // vocab size
     int64_t nbMaxPositions; // n_positions
+    
+    CStr model_type;
+    CStr torch_dtype;
 
     // Input Labels
     std::string inputIdLabel;
@@ -185,14 +189,21 @@ struct ModelInfo
     std::vector<std::string> presentLabels;
 };
 
-class MusicGenerator
+#include "abstractPipeline.hpp"
+#include "modelBuilderManager.hpp"
+
+class MusicGenerator : public AOnnxModel
 {
 private:
     std::unique_ptr<Ort::Session> session;
+
 public:
     ModelInfo modelInfo;
 
 public:
+    MusicGenerator() = default;
+    MusicGenerator(const ModelLoadingParams& jsonData);
+
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);
     void loadOnnxModel(const Ort::Env& env, const std::string& modelPath);
 
@@ -203,7 +214,6 @@ public:
     void getNextTokens(RunInstance& runInstance, const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
 
     void preGenerate(RunInstance& input, CppResult& outResult);
-    // outError is alloced with new(), and can leak
     void generate(RunInstance& input, CppResult& outResult);
     void postGenerate(RunInstance& input, CppResult& outResult);
 
@@ -215,7 +225,60 @@ public:
     RunInstance* createRunInstance();
     RunInstance generateInput(std::vector<RunInstance::DataType>&& inputTokens);
 
-
     void printInputsInfo();
+
+    // BEGIN - AModel
+    virtual APipeline* CreatePipeline();
+    // END - AModel
 };
 
+// Necessary if a single model can be infered in different threads at the same time.
+// Also helps splitting the model from the data.
+class MusicGeneratorPipeline : public APipeline
+{
+private:
+    MusicGeneratorHandle musicGenerator = nullptr;
+    RunInstanceHandle runInstance = nullptr;
+
+public:
+    MusicGeneratorPipeline(MusicGeneratorHandle newMusicGenerator, RunInstanceHandle newRunInstance)
+        : musicGenerator(newMusicGenerator),
+        runInstance(newRunInstance)
+    {
+        
+    }
+
+    virtual void preGenerate(CppResult& outResult) override
+    {
+        musicGenerator->preGenerate(*runInstance, outResult);
+    }
+    virtual void generate(CppResult& outResult) override
+    {
+        musicGenerator->generate(*runInstance, outResult);
+    }
+    virtual void postGenerate(CppResult& outResult) override
+    {
+        musicGenerator->postGenerate(*runInstance, outResult);
+    }
+
+    virtual AModel* getModel() const override
+    {
+        return musicGenerator;
+    }
+};
+
+class MusicGeneratorBuilder : public ModelBuilder
+{
+public:
+    virtual class AModel* loadModel(const ModelLoadingParams& jsonData) const override
+    {
+        return new MusicGenerator(jsonData);
+    }
+};
+
+inline auto _ = []() -> int
+{
+    getModelBuilderManager().registerModelBuilder("gpt2", new MusicGeneratorBuilder());
+
+    return 0;
+}();

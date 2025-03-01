@@ -97,7 +97,7 @@ void testComp()
 	runInstance_setMaxInputLength(runInstance, LineNbMaxToken);
 	runInstance_setMaxInputLength(runInstanceForced, LineNbMaxToken);
 
-	batch_set(batch, inputIds.data(), inputIds.size(), 0);
+	batch_set(batch, inputIds.data(), int32_t(inputIds.size()), 0);
 
 	std::int32_t* decodedTokens = nullptr;
 	std::int32_t nbDecodedTokens = 0;
@@ -141,15 +141,14 @@ void testComp()
 			{
 				context.push_back(inputIds[i]);
 			}
-			batch_set(batchForced, context.data(), context.size(), 0);
+			batch_set(batchForced, context.data(), int32_t(context.size()), 0);
 		}
 
 		// generator_generateNextToken(generator, runInstance);
 		generator_preGenerate(generator, runInstance);
 		generator_preGenerate(generator, runInstanceForced);
-		const char* errorMsg;
-		generator_generate(generator, runInstance, &errorMsg);
-		generator_generate(generator, runInstanceForced, &errorMsg);
+		CResult res = generator_generate(generator, runInstance);
+		CResult res2 = generator_generate(generator, runInstanceForced);
 
 
 
@@ -222,7 +221,7 @@ void testComp()
 
 	int32_t* outTokens = nullptr;
 	int32_t outTokensSize = 0;
-	tokenizer_decodeIDs(tok, encodedTokensVec.data(), encodedTokensVec.size(), &outTokens, &outTokensSize);
+	tokenizer_decodeIDs(tok, encodedTokensVec.data(), int32_t(encodedTokensVec.size()), &outTokens, &outTokensSize);
 
 	std::vector<int32_t> outTokensVec;
 	for (int i = 0; i < outTokensSize; i++)
@@ -273,27 +272,44 @@ int main()
 	std::cout << "Workspace path : " << WORKSPACE_PATH << std::endl;
 
 	EnvHandle env = createEnv(false);
-	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/Models/TSD/1.2.4/tokenizer.json");
+	MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/Models/TSD/1.2.10/tokenizer.json");
 	// MidiTokenizerHandle tok = createMidiTokenizer(WORKSPACE_PATH "/tokenizer.json");
 	MusicGeneratorHandle generator = createMusicGenerator();
+
+	// generator_setNbAttentionHeads(generator, 12);
+	// generator_setHiddenSize(generator, 768);
+	// generator_setNbLayers(generator, 12);
+	// generator_setNbMaxPositions(generator, 1024);
+	// generator_setVocabSize(generator, 30000);
+
+	// generator_setNbAttentionHeads(generator, 4);
+	// generator_setHiddenSize(generator, 256);
+	// generator_setNbLayers(generator, 6);
+	// generator_setNbMaxPositions(generator, 256);
+	// generator_setVocabSize(generator, 30000);
 
 	generator_setNbAttentionHeads(generator, 12);
 	generator_setHiddenSize(generator, 768);
 	generator_setNbLayers(generator, 12);
 	generator_setNbMaxPositions(generator, 1024);
-	generator_setVocabSize(generator, 30000);
+	generator_setVocabSize(generator, 50257);
 
 	// generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/REMI/gpt2-midi-model_past.onnx");
-	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/TSD/1.2.4/model.onnx");
+	generator_loadOnnxModel(generator, env, WORKSPACE_PATH "/Models/TSD/1.2.10/model.onnx");
 
 	int32_t input_ids[] = {
-		0,
+		23159, 64, 1579, 912, 45
+		// 0,
 	// 942,    65,  1579,  1842,   616,    46,  3032,  1507,   319,  1447,
 	// 12384,  1016,  1877,   319, 15263,  3396,   302,  2667,  1807,  3388,
 	// 2649,  1173,    50,   967,  1621,   256,  1564,   653,  1701,   377
 	};
 
 	std::vector<std::int32_t> inputIds(std::begin(input_ids), std::end(input_ids));
+
+	std::vector<std::int32_t> out; 
+	tok->decodeIDs(inputIds, out);
+
 
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -310,7 +326,7 @@ int main()
 
 	if (!forceUpdate)
 	{
-		batch_set(batch, inputIds.data(), inputIds.size(), 0);
+		batch_set(batch, inputIds.data(), int32_t(inputIds.size()), 0);
 	}
 
 	std::vector<int32_t> encodedTokensVec;
@@ -326,13 +342,27 @@ int main()
 			{
 				context.push_back(inputIds[i]);
 			}
-			batch_set(batch, context.data(), context.size(), 0);
+			batch_set(batch, context.data(), int32_t(context.size()), 0);
 		}
 
 		// generator_generateNextToken(generator, runInstance);
-		generator_preGenerate(generator, runInstance);
-		const char* errorMsg;
-		generator_generate(generator, runInstance, &errorMsg);
+		{
+			CResult res = generator_preGenerate(generator, runInstance);
+			if (res.message.str != nullptr)
+			{
+				std::cout << res.message.str << std::endl; 
+				return -1;
+			}
+		}
+
+		{
+			CResult res = generator_generate(generator, runInstance);
+			if (res.message.str != nullptr)
+			{
+				std::cout << res.message.str << std::endl; 
+				return -1;
+			}
+		}
 
 		const float* presentTensor = runInstance_getPresentTensor(runInstance, 0);
 
@@ -360,7 +390,7 @@ int main()
 
 	int32_t* outTokens = nullptr;
 	int32_t outTokensSize = 0;
-	tokenizer_decodeIDs(tok, encodedTokensVec.data(), encodedTokensVec.size(), &outTokens, &outTokensSize);
+	tokenizer_decodeIDs(tok, encodedTokensVec.data(), int32_t(encodedTokensVec.size()), &outTokens, &outTokensSize);
 
 	std::vector<int32_t> outTokensVec;
 	for (int i = 0; i < outTokensSize; i++)

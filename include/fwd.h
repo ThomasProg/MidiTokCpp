@@ -16,6 +16,12 @@
     #define API_EXPORT __attribute__((visibility("default")))
 #endif
 
+#ifdef __cplusplus
+    #define ASSERT_CPP_COMPILATION static_assert(true, "This code is being compiled as C++");
+#else
+    #define ASSERT_CPP_COMPILATION static_assert(false, "This code is not being compiled as C++");
+#endif
+
 namespace Ort
 {
     struct Env;
@@ -32,6 +38,10 @@ class MIDIConverter;
 struct Batch;
 struct SearchArgs;
 class RangeGroup;
+
+class APipeline;
+class AModel;
+class ModelLoader;
 
 using EnvHandle = Ort::Env*;
 using MidiTokenizerHandle = MidiTokenizer*;

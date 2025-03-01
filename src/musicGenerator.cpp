@@ -47,6 +47,29 @@ size_t Batch::size() const
     return inputIds.size();
 }
 
+MusicGenerator::MusicGenerator(const ModelLoadingParams& jsonData)
+{
+    // modelInfo.n_ctx = jsonData["n_ctx"];
+    // modelInfo.n_embd = jsonData["n_embd"];
+    // modelInfo.n_head = jsonData["n_head"];
+    // modelInfo.n_layer = jsonData["n_layer"];
+    // modelInfo.n_positions = jsonData["n_positions"];
+    // modelInfo.vocab_size = jsonData["vocab_size"];
+
+    // modelInfo.model_type = MakeCStr(jsonData["model_type"].template get<std::string>().c_str()); // "gpt2"
+    // modelInfo.torch_dtype = MakeCStr(jsonData["torch_dtype"].template get<std::string>().c_str()); // "float32"
+
+    modelInfo.ctx = jsonData["n_ctx"];
+    modelInfo.hidden_size = jsonData["n_embd"];
+    modelInfo.num_attention_heads = jsonData["n_head"];
+    modelInfo.num_layer = jsonData["n_layer"];
+    modelInfo.nbMaxPositions = jsonData["n_positions"];
+    modelInfo.vocab_size = jsonData["vocab_size"];
+
+    modelInfo.model_type = MakeCStr(jsonData["model_type"].template get<std::string>().c_str()); // "gpt2"
+    modelInfo.torch_dtype = MakeCStr(jsonData["torch_dtype"].template get<std::string>().c_str()); // "float32"
+}
+
 std::unique_ptr<Ort::Env> MusicGenerator::createOnnxEnv(bool useLogging)
 {
     if (useLogging)
@@ -374,7 +397,7 @@ void RunInstance::bindPasts(const ModelInfo& modelInfo, CppResult& outResult)
 
 void RunInstance::bindPresents(const ModelInfo& modelInfo, CppResult& outResult)
 {
-    if (modelInfo.presentLabels.size() < modelInfo.num_layer || presentTensors.size() != modelInfo.num_layer)
+    if (modelInfo.presentLabels.size() < size_t(modelInfo.num_layer) || presentTensors.size() != size_t(modelInfo.num_layer))
     {
         outResult = CppResult("(modelInfo.presentLabels.size() < modelInfo.num_layer || presentTensors.size() != modelInfo.num_layer); make sure the setup is correct");
     }
@@ -817,4 +840,9 @@ RunInstance* MusicGenerator::createRunInstance()
     runInstance->io_binding = Ort::IoBinding(*session);
 
     return runInstance;
+}
+
+APipeline* MusicGenerator::CreatePipeline()
+{
+    return new MusicGeneratorPipeline(this, createRunInstance());
 }

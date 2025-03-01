@@ -69,7 +69,21 @@ target_include_directories(MidiTokCppStatic PRIVATE include)
 target_include_directories(MidiTokCppTest PRIVATE include)
 target_include_directories(MidiTokCppTestC PRIVATE include)
 
+target_include_directories(MidiTokCpp PRIVATE bindings/cpp)
+target_include_directories(MidiTokCppStatic PRIVATE bindings/cpp)
+target_include_directories(MidiTokCppTest PRIVATE bindings/cpp)
+target_include_directories(MidiTokCppTestC PRIVATE bindings/cpp)
 
+target_include_directories(MidiTokCpp PRIVATE bindings/c)
+target_include_directories(MidiTokCppStatic PRIVATE bindings/c)
+target_include_directories(MidiTokCppTest PRIVATE bindings/c) # TODO : remove, C++
+target_include_directories(MidiTokCppTestC PRIVATE bindings/c)
+
+
+target_include_directories(MidiTokCpp PRIVATE thirdparty/headeronly/)
+target_include_directories(MidiTokCppStatic PRIVATE thirdparty/headeronly/)
+target_include_directories(MidiTokCppTest PRIVATE thirdparty/headeronly/)
+target_include_directories(MidiTokCppTestC PRIVATE thirdparty/headeronly/) # TODO : remove, C
 
 
 

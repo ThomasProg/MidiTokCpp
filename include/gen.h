@@ -4,10 +4,14 @@
 #include "note.h"
 #include "utilities.h"
 
+#ifdef __cplusplus
 extern "C"
 {
+#endif
     API_EXPORT std::int64_t computeMultiDimIndex(std::int64_t* shape, std::int64_t* indices);
+#ifdef __cplusplus
 }
+#endif
 
 // Env
 extern "C" 

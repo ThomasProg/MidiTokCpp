@@ -37,6 +37,13 @@ CStr MakeCStr(const char* inStr)
     return str;
 }
 
+CStr CreateCStr()
+{
+    CStr str;
+    InitCStr(&str);
+    return str;
+}
+
 #include <onnxruntime_cxx_api.h>
 
 template API_EXPORT class UniquePtr<Ort::Env>;

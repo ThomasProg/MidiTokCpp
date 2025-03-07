@@ -18,12 +18,12 @@ public:
         ::CStrReset(&str);
     }
 
-    const char* Str()
+    const char* Str() const
     {
         return str.str;
     }
 
-    size_t Length()
+    size_t Length() const
     {
         return str.length;
     }
@@ -33,14 +33,24 @@ public:
         ::InitCStr(&str);
     }
 
-    CppStr(const CStr& inStr)
-    {
-        str = inStr;
-    }
+    CppStr(const CStr& inStr) = delete;
+
+    // CppStr(const CStr& inStr)
+    // {
+    //     str = inStr;
+    // }
 
     CppStr(CStr&& inStr)
     {
         str = std::move(inStr);
+    }
+
+    CppStr& operator=(const CStr& inStr) = delete;
+
+    CppStr& operator=(CStr&& inStr)
+    {
+        str = std::move(inStr);
+        return *this;
     }
 
     ~CppStr()

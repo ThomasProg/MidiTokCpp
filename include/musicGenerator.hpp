@@ -152,10 +152,7 @@ public:
     void bindOutputs(const ModelInfo& modelInfo, CppResult& outResult);
     void bind(const ModelInfo& modelInfo, CppResult& outResult);
 
-    std::int64_t getNbBatches() const
-    {
-        return std::int64_t(batches.size());
-    }
+    std::int64_t getNbBatches() const;
 
     void reset();
 
@@ -202,7 +199,8 @@ public:
     MusicGenerator(const ModelLoadingParams& jsonData);
 
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);
-    void loadOnnxModel(const Ort::Env& env, const std::string& modelPath);
+    // void loadOnnxModel(const Ort::Env& env, const std::string& modelPath);
+    virtual CResult onPostOnnxLoad() override;
 
     // static void getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
     static void getNextTokens_greedyFiltered(const struct SearchArgs& args, bool (*filter)(std::int32_t token, void* data), void* data);
@@ -225,57 +223,45 @@ public:
     void printInputsInfo();
 
     // BEGIN - AModel
-    virtual APipeline* CreatePipeline();
+    virtual IAutoRegressivePipeline* createPipeline();
     // END - AModel
 };
 
 // Necessary if a single model can be infered in different threads at the same time.
 // Also helps splitting the model from the data.
-class MusicGeneratorPipeline : public APipeline
+class MusicGeneratorPipeline : public IAutoRegressivePipeline
 {
 private:
     MusicGeneratorHandle musicGenerator = nullptr;
     RunInstanceHandle runInstance = nullptr;
 
 public:
-    MusicGeneratorPipeline(MusicGeneratorHandle newMusicGenerator, RunInstanceHandle newRunInstance)
-        : musicGenerator(newMusicGenerator),
-        runInstance(newRunInstance)
-    {
-        
-    }
+    MusicGeneratorPipeline(MusicGeneratorHandle newMusicGenerator, RunInstanceHandle newRunInstance);
+    virtual void preGenerate(CppResult& outResult) override;
+    virtual void generate(CppResult& outResult) override;
+    virtual void postGenerate(CppResult& outResult) override;
+    virtual AModel* getModel() const override;
 
-    virtual void preGenerate(CppResult& outResult) override
-    {
-        musicGenerator->preGenerate(*runInstance, outResult);
-    }
-    virtual void generate(CppResult& outResult) override
-    {
-        musicGenerator->generate(*runInstance, outResult);
-    }
-    virtual void postGenerate(CppResult& outResult) override
-    {
-        musicGenerator->postGenerate(*runInstance, outResult);
-    }
 
-    virtual AModel* getModel() const override
-    {
-        return musicGenerator;
-    }
+
+
+    virtual void setSearchStrategyData(void* searchStrategyData) override;
+    virtual void setSearchStrategy(TSearchStrategy searchStrategy) override;
+    virtual int32_t getNbBatches() const override;
+
+    // returns the index of the new batch
+    virtual AutoRegressiveBatchHandle addBatch() override;
+    virtual void removeAllBatches() override;
+
+    // If the model has to be updated, for example RNN state being reset if resetting the batch
+    virtual int32_t batchGetLastGeneratedToken(AutoRegressiveBatchHandle batch) override;
+    virtual void batchSet(AutoRegressiveBatchHandle batch, DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos) override;
+    virtual void setMaxInputLength(int32_t newMaxInputLength) override;
+    virtual void reset() override;
 };
 
-class MusicGeneratorBuilder : public ModelBuilder
+class MusicGeneratorBuilder : public OnnxModelBuilder
 {
 public:
-    virtual class AModel* loadModel(const ModelLoadingParams& jsonData) const override
-    {
-        return new MusicGenerator(jsonData);
-    }
+    virtual class MusicGenerator* loadModel(const ModelLoadingParams& jsonData) const override;
 };
-
-inline auto _ = []() -> int
-{
-    getModelBuilderManager().registerModelBuilder("gpt2", new MusicGeneratorBuilder());
-
-    return 0;
-}();

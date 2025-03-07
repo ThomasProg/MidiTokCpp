@@ -1,8 +1,9 @@
 #include "abstractPipeline.hpp"
 #include <sstream>
 #include "utilities.hpp"
+#include <onnxruntime_cxx_api.h>
 
-CResult AOnnxModel::loadOnnxPipeline(const Ort::Env& env, const std::string& modelPath)
+CResult AOnnxModel::loadOnnxModel(const Ort::Env& env, const char* modelPath)
 {
     // Create session options and enable optimization
     Ort::SessionOptions session_options;

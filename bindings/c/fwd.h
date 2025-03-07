@@ -26,6 +26,7 @@
 namespace Ort
 {
     struct Env;
+    struct Session;
 }
 
 class MidiTokenizer;
@@ -40,9 +41,12 @@ struct Batch;
 struct SearchArgs;
 class RangeGroup;
 
-class APipeline;
+class IPipeline;
+class IAutoRegressivePipeline;
+
 class AModel;
 class ModelLoader;
+class ModelLoadingParamsWrapper;
 
 using EnvHandle = Ort::Env*;
 using MidiTokenizerHandle = MidiTokenizer*;
@@ -54,6 +58,11 @@ using MidiConverterHandle = MIDIConverter*;
 using BatchHandle = Batch*;
 using RangeGroupHandle = RangeGroup*;
 
+using IPipelineHandle = IPipeline*;
+using AModelHandle = AModel*;
+using ModelLoaderHandle = ModelLoader*;
+
+using AutoRegressiveBatchHandle = int32_t;
 using DataType = int32_t;
 
 using TSearchStrategy = void (*)(const struct SearchArgs& args, void* searchStrategyData);
@@ -68,6 +77,10 @@ typedef struct TokenSequenceOpaque* TokenSequenceHandle;
 typedef struct MIDIConverterOpaque* MidiConverterHandle;
 typedef struct BatchOpaque* BatchHandle;
 typedef struct RangeGroupOpaque* RangeGroupHandle;
+
+typedef struct IPipelineOpaque* IPipelineHandle;
+typedef struct AModelOpaque* AModelHandle;
+typedef struct ModelLoaderOpaque* ModelLoaderHandle;
 
 typedef int32_t DataType;
 

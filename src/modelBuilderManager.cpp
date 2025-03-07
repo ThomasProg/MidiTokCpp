@@ -5,6 +5,8 @@
 #include <string>
 #include <fstream>
 
+#include "modelLoadingParams.hpp"
+
 std::string folderPathToModelConfigPath(const std::string& folderPath)
 {
     return folderPath + "/config.json";
@@ -16,6 +18,48 @@ std::string folderPathToModelModelPath(const std::string& folderPath)
 }
 
 // .hpp
+
+ModelLoadingParamsWrapper::ModelLoadingParamsWrapper() : internal(*new ModelLoadingParams())
+{
+    
+}
+ModelLoadingParamsWrapper::~ModelLoadingParamsWrapper()
+{
+    delete &internal;
+}
+
+CppStr ModelLoadingParamsWrapper::getModelType() const
+{
+    return MakeCStr(internal.json["model_type"]);
+}
+
+AModel* ModelBuilder::loadModelFromWrapper(const ModelLoadingParamsWrapper& loadingData) const
+{
+    return loadModel(loadingData.internal);
+}
+
+const TypeInfo& ModelBuilder::getStaticTypeInfo()
+{
+    static TypeInfo typeInfo{&Object::getStaticTypeInfo()};
+    return typeInfo; 
+}
+
+const TypeInfo& ModelBuilder::getTypeInfo()
+{
+    return getStaticTypeInfo(); 
+}
+
+const TypeInfo& OnnxModelBuilder::getStaticTypeInfo()
+{
+    static TypeInfo typeInfo{&ModelBuilder::getStaticTypeInfo()};
+    return typeInfo; 
+}
+
+const TypeInfo& OnnxModelBuilder::getTypeInfo()
+{
+    return getStaticTypeInfo(); 
+}
+
 class ModelBuilderManagerInternal
 {
     std::unordered_map<std::string, std::unique_ptr<ModelBuilder>> modelTypeToBuilder;
@@ -25,6 +69,8 @@ public:
     const ModelBuilder* loadBuilder(const ModelLoadingParams& jsonData) const;
     AModel* loadModel(const ModelLoadingParams& jsonData) const;
     AModel* loadModel(const char* folderPath) const;
+
+    ModelBuilder* findBuilder(const std::string& modelType) const;
 };
 
 ModelBuilderManagerInternal modelBuilderManagerSingleton;
@@ -35,9 +81,31 @@ void ModelBuilderManagerInternal::registerModelBuilder(const char* modelType, Mo
     modelTypeToBuilder[modelType] = std::unique_ptr<ModelBuilder>(std::move(modelBuilder)); 
 }
 
-const ModelBuilder* ModelBuilderManagerInternal::loadBuilder(const ModelLoadingParams& jsonData) const
+const ModelBuilder* ModelBuilderManagerInternal::loadBuilder(const ModelLoadingParams& loadingData) const
 {
-    std::string modelType = jsonData["model_type"];
+    std::string modelType = loadingData.json["model_type"];
+    return findBuilder(modelType);
+}
+
+AModel* ModelBuilderManagerInternal::loadModel(const ModelLoadingParams& loadingData) const
+{
+    const ModelBuilder* builder = loadBuilder(loadingData);
+    return builder->loadModel(loadingData);
+}
+
+AModel* ModelBuilderManagerInternal::loadModel(const char* folderPath) const
+{
+    ModelLoadingParams loadingData;
+    CppResult r = createModelLoadingParamsFromFolder(folderPath, &loadingData);
+    if (!r.IsSuccess())
+    {
+        return nullptr;
+    }
+    return loadModel(std::move(loadingData));
+}
+
+ModelBuilder* ModelBuilderManagerInternal::findBuilder(const std::string& modelType) const
+{
     auto it = modelTypeToBuilder.find(modelType);
 
     if (it == modelTypeToBuilder.end())
@@ -47,31 +115,6 @@ const ModelBuilder* ModelBuilderManagerInternal::loadBuilder(const ModelLoadingP
 
     return it->second.get();
 }
-
-AModel* ModelBuilderManagerInternal::loadModel(const ModelLoadingParams& jsonData) const
-{
-    const ModelBuilder* builder = loadBuilder(jsonData);
-    return builder->loadModel(jsonData);
-}
-
-AModel* ModelBuilderManagerInternal::loadModel(const char* folderPath) const
-{
-    nlohmann::json jsonData;
-
-    // Open the file and parse it
-    std::ifstream inputFile(folderPathToModelConfigPath(folderPath));
-    if (inputFile.is_open()) {
-        inputFile >> jsonData;
-        inputFile.close();
-    } 
-    else 
-    {
-        throw std::runtime_error("Config File doesn't exist!");
-    }
-
-    return loadModel(jsonData);
-}
-
 
 
 ModelBuilderManager modelBuilderManager;
@@ -98,6 +141,11 @@ AModel* ModelBuilderManager::loadModel(const char* folderPath) const
     return modelBuilderManagerSingleton.loadModel(folderPath);
 }
 
+ModelBuilder* ModelBuilderManager::findBuilder(const char* modelType) const
+{
+    return modelBuilderManagerSingleton.findBuilder(modelType);
+}
+
 // .h
 API_EXPORT void modelBuilderManager_registerModelBuilder(const char* modelType, CModelBuilder* builder)
 {
@@ -119,7 +167,7 @@ API_EXPORT void modelBuilderManager_registerModelBuilder(const char* modelType, 
     modelBuilderManagerSingleton.registerModelBuilder(modelType, std::move(wrapped));
 }
 
-API_EXPORT void ModelBuilderManager_loadModel(const char* folderPath, AModel** outModel, CResult* outResult)
+API_EXPORT void ModelBuilderManager_loadModel(const char* folderPath, AModelHandle* outModel, CResult* outResult)
 {
     try
     {
@@ -131,4 +179,31 @@ API_EXPORT void ModelBuilderManager_loadModel(const char* folderPath, AModel** o
     }
 }
 
+CResult createModelLoadingParamsFromFolder(const char* folderPath, ModelLoadingParams* outParams)
+{
+    assert(outParams != nullptr);
+    outParams->modelPath = MakeCStr(folderPath);
 
+    // Open the file and parse it
+    std::ifstream inputFile(folderPathToModelConfigPath(folderPath));
+    if (inputFile.is_open()) {
+        inputFile >> outParams->json;
+        inputFile.close();
+    } 
+    else 
+    {
+        return CResult{MakeCStr("Config File doesn't exist!")};
+    }
+
+    return CResult{CreateCStr()};
+}
+
+CResult createModelLoadingParamsWrapperFromFolder(const char* folderPath, ModelLoadingParamsWrapper* outParams)
+{
+    return createModelLoadingParamsFromFolder(folderPath, &outParams->internal);
+}
+
+CStr modelLoadingParams_getModelType(ModelLoadingParams* params)
+{
+    return MakeCStr(params->getModelType().c_str());
+}

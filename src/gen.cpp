@@ -44,9 +44,9 @@ void destroyMusicGenerator(MusicGeneratorHandle musicGen)
     delete musicGen;
 }
 
-void generator_loadOnnxModel(MusicGeneratorHandle generator, EnvHandle env, const char* path)
+CResult generator_loadOnnxModel(MusicGeneratorHandle generator, EnvHandle env, const char* path)
 {
-    generator->loadOnnxModel(*env, path);
+    return generator->loadOnnxModel(*env, path);
 }
 
 

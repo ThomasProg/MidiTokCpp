@@ -18,6 +18,7 @@ API_EXPORT void DestroyCStr(CStr* str);
 API_EXPORT void CStrReset(CStr* str);
 
 API_EXPORT CStr MakeCStr(const char* inStr);
+API_EXPORT CStr CreateCStr();
 
 typedef struct
 {

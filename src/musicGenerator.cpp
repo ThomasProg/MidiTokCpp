@@ -1,4 +1,5 @@
 #include "musicGenerator.hpp"
+#include "modelLoadingParams.hpp"
 
 #include <sstream>
 #include "note.h"
@@ -47,27 +48,27 @@ size_t Batch::size() const
     return inputIds.size();
 }
 
-MusicGenerator::MusicGenerator(const ModelLoadingParams& jsonData)
+MusicGenerator::MusicGenerator(const ModelLoadingParams& loadingData)
 {
-    // modelInfo.n_ctx = jsonData["n_ctx"];
-    // modelInfo.n_embd = jsonData["n_embd"];
-    // modelInfo.n_head = jsonData["n_head"];
-    // modelInfo.n_layer = jsonData["n_layer"];
-    // modelInfo.n_positions = jsonData["n_positions"];
-    // modelInfo.vocab_size = jsonData["vocab_size"];
+    // modelInfo.n_ctx = loadingData["n_ctx"];
+    // modelInfo.n_embd = loadingData["n_embd"];
+    // modelInfo.n_head = loadingData["n_head"];
+    // modelInfo.n_layer = loadingData["n_layer"];
+    // modelInfo.n_positions = loadingData["n_positions"];
+    // modelInfo.vocab_size = loadingData["vocab_size"];
 
-    // modelInfo.model_type = MakeCStr(jsonData["model_type"].template get<std::string>().c_str()); // "gpt2"
-    // modelInfo.torch_dtype = MakeCStr(jsonData["torch_dtype"].template get<std::string>().c_str()); // "float32"
+    // modelInfo.model_type = MakeCStr(loadingData["model_type"].template get<std::string>().c_str()); // "gpt2"
+    // modelInfo.torch_dtype = MakeCStr(loadingData["torch_dtype"].template get<std::string>().c_str()); // "float32"
 
-    modelInfo.ctx = jsonData["n_ctx"];
-    modelInfo.hidden_size = jsonData["n_embd"];
-    modelInfo.num_attention_heads = jsonData["n_head"];
-    modelInfo.num_layer = jsonData["n_layer"];
-    modelInfo.nbMaxPositions = jsonData["n_positions"];
-    modelInfo.vocab_size = jsonData["vocab_size"];
+    modelInfo.ctx = loadingData.json["n_ctx"];
+    modelInfo.hidden_size = loadingData.json["n_embd"];
+    modelInfo.num_attention_heads = loadingData.json["n_head"];
+    modelInfo.num_layer = loadingData.json["n_layer"];
+    modelInfo.nbMaxPositions = loadingData.json["n_positions"];
+    modelInfo.vocab_size = loadingData.json["vocab_size"];
 
-    modelInfo.model_type = MakeCStr(jsonData["model_type"].template get<std::string>().c_str()); // "gpt2"
-    modelInfo.torch_dtype = MakeCStr(jsonData["torch_dtype"].template get<std::string>().c_str()); // "float32"
+    modelInfo.model_type = MakeCStr(loadingData.json["model_type"].template get<std::string>().c_str()); // "gpt2"
+    modelInfo.torch_dtype = MakeCStr(loadingData.json["torch_dtype"].template get<std::string>().c_str()); // "float32"
 }
 
 std::unique_ptr<Ort::Env> MusicGenerator::createOnnxEnv(bool useLogging)
@@ -78,26 +79,27 @@ std::unique_ptr<Ort::Env> MusicGenerator::createOnnxEnv(bool useLogging)
         return std::make_unique<Ort::Env>();
 }
 
-void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& modelPath)
+// void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& modelPath)
+// {
+//     // Create session options and enable optimization
+//     Ort::SessionOptions session_options;
+//     session_options.SetIntraOpNumThreads(1);
+//     session_options.SetIntraOpNumThreads(1);
+//     session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+
+//     try 
+//     {
+//         session = MakeUnique<Ort::Session>(env, widen(modelPath).c_str(), session_options);
+//     }
+//     catch(const Ort::Exception& e)
+//     {
+//         std::cout << "Error occurred: " << e.what() << std::endl;           // Error message
+//         std::cout << "Error code: " << e.GetOrtErrorCode() << std::endl;    // Error code
+//         exit(1);
+//     }
+
+CResult MusicGenerator::onPostOnnxLoad() 
 {
-    // Create session options and enable optimization
-    Ort::SessionOptions session_options;
-    session_options.SetIntraOpNumThreads(1);
-    session_options.SetIntraOpNumThreads(1);
-    session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-
-    try 
-    {
-        session = MakeUnique<Ort::Session>(env, widen(modelPath).c_str(), session_options);
-    }
-    catch(const Ort::Exception& e)
-    {
-        std::cout << "Error occurred: " << e.what() << std::endl;           // Error message
-        std::cout << "Error code: " << e.GetOrtErrorCode() << std::endl;    // Error code
-        exit(1);
-    }
-
-
     const OrtApi *api = OrtGetApiBase()->GetApi(ORT_API_VERSION);
 
     // Retrieve model input/output info
@@ -200,6 +202,8 @@ void MusicGenerator::loadOnnxModel(const Ort::Env& env, const std::string& model
     {
         modelInfo.pastLabels[i] = std::string("past_") + std::to_string(i);
     }
+
+    return CResult();
 }
 
 void RunInstance::resetSearchStrategy()
@@ -305,6 +309,7 @@ void RunInstance::updateInputIdsTensor(const struct ModelInfo& info)
     size_t i = 0;
     for (Batch* batch : batches)
     {
+        assert(!batch->inputIds.empty());
         for (std::size_t j = 0; j < batch->inputIds.size(); j++)
         {
             data[i] = batch->inputIds[j];
@@ -319,6 +324,7 @@ void RunInstance::updatePositionIdsTensor(const struct ModelInfo& info)
     size_t i = 0;
     for (Batch* batch : batches)
     {
+        assert(!batch->positionIds.empty());
         for (std::size_t j = 0; j < batch->positionIds.size(); j++)
         {
             data[i] = batch->positionIds[j] % info.nbMaxPositions;
@@ -333,6 +339,7 @@ void RunInstance::updateAttentionMaskTensor(const struct ModelInfo& info)
     size_t i = 0;
     for (Batch* batch : batches)
     {
+        assert(!batch->attentionMask.empty());
         for (std::size_t j = 0; j < batch->attentionMask.size(); j++)
         {
             data[i] = batch->attentionMask[j];
@@ -428,6 +435,11 @@ void RunInstance::bind(const ModelInfo& modelInfo, CppResult& outResult)
 {
     bindInputs(modelInfo, outResult);
     bindOutputs(modelInfo, outResult);
+}
+
+std::int64_t RunInstance::getNbBatches() const
+{
+    return std::int64_t(batches.size());
 }
 
 void RunInstance::reset()
@@ -842,7 +854,105 @@ RunInstance* MusicGenerator::createRunInstance()
     return runInstance;
 }
 
-APipeline* MusicGenerator::CreatePipeline()
+IAutoRegressivePipeline* MusicGenerator::createPipeline()
 {
     return new MusicGeneratorPipeline(this, createRunInstance());
 }
+
+MusicGeneratorPipeline::MusicGeneratorPipeline(MusicGeneratorHandle newMusicGenerator, RunInstanceHandle newRunInstance)
+    : musicGenerator(newMusicGenerator),
+    runInstance(newRunInstance)
+{
+    
+}
+
+void MusicGeneratorPipeline::preGenerate(CppResult& outResult)
+{
+    musicGenerator->preGenerate(*runInstance, outResult);
+}
+void MusicGeneratorPipeline::generate(CppResult& outResult)
+{
+    musicGenerator->generate(*runInstance, outResult);
+}
+void MusicGeneratorPipeline::postGenerate(CppResult& outResult)
+{
+    musicGenerator->postGenerate(*runInstance, outResult);
+}
+
+AModel* MusicGeneratorPipeline::getModel() const
+{
+    return musicGenerator;
+}
+
+
+
+
+void MusicGeneratorPipeline::setSearchStrategyData(void* searchStrategyData)
+{
+    runInstance->searchStrategyData = searchStrategyData;
+}
+void MusicGeneratorPipeline::setSearchStrategy(TSearchStrategy searchStrategy)
+{
+    runInstance->searchStrategyData = searchStrategy;
+}
+
+int32_t MusicGeneratorPipeline::getNbBatches() const
+{
+    return int32_t(runInstance->batches.size());
+}
+
+// returns the index of the new batch
+AutoRegressiveBatchHandle MusicGeneratorPipeline::addBatch()
+{
+    runInstance->batches.emplace_back(new Batch());
+    return int32_t(runInstance->batches.size()) - 1;
+}
+
+void MusicGeneratorPipeline::removeAllBatches()
+{
+    runInstance->batches.clear();
+}
+
+// If the model has to be updated, for example RNN state being reset if resetting the batch
+int32_t MusicGeneratorPipeline::batchGetLastGeneratedToken(AutoRegressiveBatchHandle batch)
+{
+    return runInstance->batches[batch]->lastGeneratedToken;
+}
+void MusicGeneratorPipeline::batchSet(AutoRegressiveBatchHandle batch, DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos)
+{
+    std::vector<DataType> inTokens(nbTokens);
+
+    for (std::int32_t i = 0; i < nbTokens; i++)
+    {
+        inTokens[i] = inputTokens[i];
+    }
+
+    runInstance->batches[batch]->set(std::move(inTokens), fromPos);
+}
+
+void MusicGeneratorPipeline::setMaxInputLength(int32_t newMaxInputLength)
+{
+    runInstance->maxInputLength = newMaxInputLength;
+}
+
+void MusicGeneratorPipeline::reset()
+{
+    runInstance->reset();
+}
+
+MusicGenerator* MusicGeneratorBuilder::loadModel(const ModelLoadingParams& jsonData) const
+{
+    MusicGenerator* gen = new MusicGenerator(jsonData);
+
+    const std::string path = std::string(jsonData.modelPath.Str()) + "/model.onnx";
+    gen->loadOnnxModel(*env, path.c_str());
+
+    return gen;
+}
+
+inline auto _ = []() -> int
+{
+    getModelBuilderManager().registerModelBuilder("gpt2", new MusicGeneratorBuilder());
+
+    return 0;
+}();

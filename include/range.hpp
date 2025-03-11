@@ -55,7 +55,7 @@ public:
 
     // write all ints in that RangeGroup inside an array
     // size of the array must be size()
-    void write(int32_t* array);
+    void write(int32_t* writeBuffer);
 };
 
 

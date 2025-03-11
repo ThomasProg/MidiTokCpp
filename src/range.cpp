@@ -101,14 +101,14 @@ void RangeGroup::addRange(Range newRange)
     ranges.erase(ranges.begin() + startIndex + 1, ranges.begin() + endIndex);
 }
 
-void RangeGroup::write(int32_t* array)
+void RangeGroup::write(int32_t* writeBuffer)
 {
     for (const Range& range : ranges)
     {
         for (int32_t token = range.min; token <= range.max; ++token)
         {
-            *array = token;
-            ++array;
+            *writeBuffer = token;
+            ++writeBuffer;
         }
     }
 }

@@ -195,7 +195,7 @@ int32_t topKSampling(float* logits, int32_t* indicesStart, int32_t* indicesEnd)
     // std::discrete_distribution doesn't need normalized probabilities
     WeightedContainer wrappedLogits(logits, indicesStart, indicesEnd);
     std::discrete_distribution<int32_t> distribution(wrappedLogits.begin(), wrappedLogits.end());
-    return distribution(getRandGenerator());
+    return indicesStart[distribution(getRandGenerator())];
 }
 
 int32_t* topPSamplingFindCutoffIt(float* logits, int32_t* indicesStart, int32_t* indicesEnd, float cutoff)

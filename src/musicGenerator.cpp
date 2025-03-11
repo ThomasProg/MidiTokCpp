@@ -606,7 +606,7 @@ void MusicGenerator::getNextTokens_greedy(const SearchArgs& args)
 //     }
 // }
 
-void MusicGenerator::getNextTokens(RunInstance& runInstance, const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
+void MusicGenerator::processNextTokens(RunInstance& runInstance, Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
 {
     // getNextTokens_greedy(logitsTensor, outNextTokens);
 
@@ -616,7 +616,7 @@ void MusicGenerator::getNextTokens(RunInstance& runInstance, const Ort::Value& l
     assert(tensorInfo.GetDimensionsCount() == 3);
     std::vector<int64_t> shape = tensorInfo.GetShape();
     SearchArgs args;
-    args.logitsTensor = logitsTensor.GetTensorData<float>();
+    args.logitsTensor = logitsTensor.GetTensorMutableData<float>();
     args.outNextTokens = outNextTokens.data();
     args.nbBatches = static_cast<std::int32_t>(shape[0]);
     args.nbSequences = static_cast<std::int32_t>(shape[1]);
@@ -671,7 +671,7 @@ void MusicGenerator::postGenerate(RunInstance& input, CppResult& outResult)
     std::int64_t nbBatches = input.getNbBatches(); 
 
     input.nextTokens.resize(nbBatches);
-    getNextTokens(input, input.logitsTensor, input.nextTokens);
+    processNextTokens(input, input.logitsTensor, input.nextTokens);
 
     // Update next inputs
     for (int64_t b = 0; b < nbBatches; ++b) 

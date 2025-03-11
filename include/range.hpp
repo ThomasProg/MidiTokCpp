@@ -17,6 +17,7 @@ class RangeGroup
 {
     // Sorted
     std::vector<Range> ranges;
+    size_t totalSize = 0;
 
 public:
     // Uses dichotomy search
@@ -46,6 +47,15 @@ public:
     {
         return ranges;
     }
+
+    inline std::size_t size() const
+    {
+        return totalSize;
+    }
+
+    // write all ints in that RangeGroup inside an array
+    // size of the array must be size()
+    void write(int32_t* array);
 };
 
 

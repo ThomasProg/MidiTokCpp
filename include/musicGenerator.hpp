@@ -206,7 +206,7 @@ public:
     static void getNextTokens_greedyFiltered(const struct SearchArgs& args, bool (*filter)(std::int32_t token, void* data), void* data);
     static void getNextTokens_greedyPreFiltered(const struct SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken);
     static void getNextTokens_greedy(const struct SearchArgs& args);
-    void getNextTokens(RunInstance& runInstance, const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
+    void processNextTokens(RunInstance& runInstance, Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
 
     void preGenerate(RunInstance& input, CppResult& outResult);
     void generate(RunInstance& input, CppResult& outResult);

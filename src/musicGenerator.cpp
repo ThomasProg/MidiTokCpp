@@ -893,7 +893,7 @@ void MusicGeneratorPipeline::setSearchStrategyData(void* searchStrategyData)
 }
 void MusicGeneratorPipeline::setSearchStrategy(TSearchStrategy searchStrategy)
 {
-    runInstance->searchStrategyData = searchStrategy;
+    runInstance->searchStrategy = searchStrategy;
 }
 
 int32_t MusicGeneratorPipeline::getNbBatches() const

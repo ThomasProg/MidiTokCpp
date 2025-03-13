@@ -177,11 +177,11 @@ bool redirector_call(RedirectorHandle redirector, int32_t token)
     return redirector->tryCall(token);
 }
 
-void tokenizer_decodeIDs(MidiTokenizerHandle tokenizer, const std::int32_t* inputIDs, std::int32_t size, std::int32_t** outputIDs, std::int32_t* outSize)
+CResult tokenizer_decodeIDs(MidiTokenizerHandle tokenizer, const std::int32_t* inputIDs, std::int32_t size, std::int32_t** outputIDs, std::int32_t* outSize)
 {
     if (size == 0)
     {
-        return;
+        return CResult();
     }
 
     std::vector<std::int32_t> inTokensVec;
@@ -190,7 +190,14 @@ void tokenizer_decodeIDs(MidiTokenizerHandle tokenizer, const std::int32_t* inpu
         inTokensVec.push_back(inputIDs[i]);
 
     std::vector<std::int32_t> outTokensVec;
-    tokenizer->decodeIDs(inTokensVec, outTokensVec);
+    try
+    {
+        tokenizer->decodeIDs(inTokensVec, outTokensVec);
+    }
+    catch(const std::exception&)
+    {
+        return CResult({MakeCStr("error in decodeIDs()")});
+    }
 
     *outSize = std::int32_t(outTokensVec.size());
     *outputIDs = new std::int32_t[*outSize]();
@@ -199,6 +206,8 @@ void tokenizer_decodeIDs(MidiTokenizerHandle tokenizer, const std::int32_t* inpu
     {
         (*outputIDs)[i] = outTokensVec[i];
     }
+
+    return CResult();
 }
 
 void tokenizer_decodeIDs_free(std::int32_t* outputIDs)

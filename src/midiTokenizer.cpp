@@ -768,7 +768,7 @@ Score MidiTokenizer::_tokens_to_score(const TokSequence& seq)
 
 void MidiTokenizer::decodeToken(std::int32_t encodedToken, std::vector<int32_t>& outDecodedTokens) const
 {
-    std::vector<std::int32_t> inTokensVec(1);
+    static thread_local std::vector<std::int32_t> inTokensVec(1);
     inTokensVec[0] = encodedToken;
 
     decodeIDs(inTokensVec, outDecodedTokens);

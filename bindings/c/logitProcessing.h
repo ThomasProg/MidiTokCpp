@@ -23,7 +23,17 @@ extern "C"
     API_EXPORT int32_t* topPSamplingFindCutoffIt(float* logits, int32_t* indicesStart, int32_t* indicesEnd, float cutoff);
     API_EXPORT int32_t topPSampling(float* logits, int32_t* indicesStart, int32_t* indicesEnd, float cutoff);
 
-    API_EXPORT void temperatureTransform(const SearchArgs* args, const Range* ranges, size_t nbRanges);
+    API_EXPORT void temperatureTransform(float* logits, const Range* ranges, size_t nbRanges, float temperature);
+    
+    API_EXPORT void customPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, void* data, bool (*penaltyFunctor)(void* data, const int32_t token, float* outPenalty));
+    API_EXPORT void repetitionPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, float penalty, GenerationHistory* history, int32_t maxAge);
 
+    typedef struct SpecialPenaltyTransformArgs
+    {
+        float pitchWindowSize = 100.f;
+        float pitchMaxAdditivePenalty = 0.2f;
+    } API_EXPORT SpecialPenaltyTransformArgs;
+
+    API_EXPORT void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, GenerationHistory* history, const SpecialPenaltyTransformArgs* args);
 }
 

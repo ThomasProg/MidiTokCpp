@@ -191,6 +191,7 @@ public:
     }
 
     // Decode a single token
+    // @TODO : optimize by simply setting a pointer (with size) instead of using a std::vector
     void decodeToken(std::int32_t encodedToken, std::vector<int32_t>& outDecodedTokens) const;
 
     std::vector<int32_t> encode(const Score& score);
@@ -274,7 +275,7 @@ public:
         return std::stoi(getUniqueValueStr(str));
     }
 
-    bool isBarNone(std::int32_t token)
+    bool isBarNone(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
 
@@ -286,55 +287,55 @@ public:
         return startBy(str.c_str(), "Bar_None");
     }
 
-    bool isTimeShift(std::int32_t token)
+    bool isTimeShift(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "TimeShift_");
     }
 
-    std::string getTimeShiftValue(std::int32_t token)
+    std::string getTimeShiftValue(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return getUniqueValueStr(str);
     }
 
-    bool isPosition(std::int32_t token)
+    bool isPosition(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "Position_");
     }
 
-    std::int32_t getPositionValue(std::int32_t token)
+    std::int32_t getPositionValue(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return getUniqueValueInt(str);
     }
 
-    bool isPitch(std::int32_t token)
+    bool isPitch(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "Pitch_");
     }
 
-    std::int32_t getPitchValue(std::int32_t token)
+    std::int32_t getPitchValue(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return getUniqueValueInt(str);
     }
 
-    bool isDuration(std::int32_t token)
+    bool isDuration(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "Duration_");
     }
 
-    std::int32_t getDurationValue(std::int32_t token)
+    std::int32_t getDurationValue(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return getUniqueValueInt(str);
     }
 
-    bool isVelocity(std::int32_t token)
+    bool isVelocity(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "Velocity_");
@@ -346,55 +347,55 @@ public:
         return getUniqueValueInt(str);
     }
 
-    bool isRest(std::int32_t token)
+    bool isRest(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "Rest_");
     }
 
-    std::string getRestValue(std::int32_t token)
+    std::string getRestValue(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return getUniqueValueStr(str);
     }
 
-    bool isProgram(std::int32_t token)
+    bool isProgram(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "Program_");
     }
 
-    std::int32_t getProgramValue(std::int32_t token)
+    std::int32_t getProgramValue(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return getUniqueValueInt(str);
     }
 
-    bool isTempo(std::int32_t token)
+    bool isTempo(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "Tempo_");
     }
 
-    bool isTimeSig(std::int32_t token)
+    bool isTimeSig(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "TimeSig_");
     }
 
-    bool isPedal(std::int32_t token)
+    bool isPedal(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "Pedal_");
     }
 
-    bool isPedalOff(std::int32_t token)
+    bool isPedalOff(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "PedalOff_");
     }
 
-    bool isPitchBend(std::int32_t token)
+    bool isPitchBend(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "PitchBend_");

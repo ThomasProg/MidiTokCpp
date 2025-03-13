@@ -1,10 +1,14 @@
 #include "logitProcessing.h"
+#include "logitProcessing.hpp"
 #include "note.h"
 #include <cmath>
 #include <algorithm>
 #include <vector>
 #include <memory>
 #include <random>
+#include <cassert>
+#include "midiTokenizer.hpp"
+#include "generationHistory.hpp"
 
 // numerically stable softmax ; reduces overflows, but costs slightly more
 // substract by max logit
@@ -223,3 +227,93 @@ int32_t topPSampling(float* logits, int32_t* indicesStart, int32_t* indicesEnd, 
     return topKSampling(logits, indicesStart, cutoffIndexIt);
 }
 
+void temperatureTransform(float* logits, const Range* ranges, size_t nbRanges, float temperature)
+{
+    for (int32_t rangeIndex = 0; rangeIndex < nbRanges; rangeIndex++)
+    {
+        for (int32_t token = ranges[rangeIndex].min; token <= ranges[rangeIndex].max; token++)
+        {
+            logits[token] /= temperature;
+        }
+    }
+}
+
+template<typename F>
+inline void customPenaltyTransformTemplated(float* logits, const Range* ranges, size_t nbRanges, F&& penaltyFunctor)
+{
+    for (int32_t rangeIndex = 0; rangeIndex < nbRanges; rangeIndex++)
+    {
+        for (int32_t token = ranges[rangeIndex].min; token <= ranges[rangeIndex].max; token++)
+        {
+            float penalty;
+            if (penaltyFunctor(token, &penalty))
+            {
+                const float logit = logits[token];
+                if (logit > 0.0)
+                {
+                    logits[token] /= penalty;
+                }
+                else
+                {
+                    logits[token] *= penalty;
+                }
+            }
+        }
+    }
+}
+
+void customPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, const void* data, bool (*penaltyFunctor)(const void* data, const int32_t token, float* outPenalty))
+{
+    customPenaltyTransformTemplated(logits, ranges, nbRanges, [data, penaltyFunctor](const int32_t token, float* outPenalty) -> bool
+    {
+        return penaltyFunctor(data, token, outPenalty);
+    });
+}
+
+void repetitionPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, float penalty, GenerationHistory* history, int32_t maxAge)
+{
+    auto penaltyFunctor = [penalty, maxAge, history](const int32_t token, float* outPenalty) -> bool
+    {
+        if (!history->hadDecodedTokenRecently(token, 250))
+        {
+            return false;
+        }
+
+        *outPenalty = penalty;
+        return true;
+    };
+
+    customPenaltyTransformTemplated(logits, ranges, nbRanges, penaltyFunctor);
+}
+
+void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, GenerationHistory* history, const SpecialPenaltyTransformArgs* args)
+{
+    assert(args != nullptr);
+    specialPenaltyTransform(logits, ranges, nbRanges, history, *args);
+}
+
+void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, GenerationHistory* history, const SpecialPenaltyTransformArgs& args)
+{
+    auto penaltyFunctor = [history, &args](const int32_t token, float* outPenalty) -> bool
+    {
+        *outPenalty = 1.0;
+
+        const MidiTokenizer& tokenizer = history->getTokenizer();
+        static thread_local std::vector<int32_t> decodedTokens;
+        decodedTokens.clear();
+        tokenizer.decodeToken(token, decodedTokens);
+
+        for (int32_t decodedToken : decodedTokens)
+        {
+            int32_t age;
+            if (tokenizer.isPitch(decodedToken) && history->getDecodedTokensHistory().findMostRecentAge(token, age))
+            {
+                *outPenalty += args.pitchMaxAdditivePenalty * (1.f - float(age) / args.pitchWindowSize);
+            }
+        }
+
+        return true;
+    };
+
+    customPenaltyTransformTemplated(logits, ranges, nbRanges, penaltyFunctor);
+}

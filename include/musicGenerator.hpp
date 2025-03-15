@@ -7,6 +7,7 @@
 #include "midiTokenizer.hpp"
 #include "fwd.h"
 #include "utilities.hpp"
+#include "generationHistory.hpp"
 
 template<typename T>
 void PrintTensorContent(const Ort::Value& value) {
@@ -234,6 +235,7 @@ class MusicGeneratorPipeline : public IAutoRegressivePipeline
 private:
     MusicGeneratorHandle musicGenerator = nullptr;
     RunInstanceHandle runInstance = nullptr;
+    std::unique_ptr<GenerationHistory> history;
 
 public:
     MusicGeneratorPipeline(MusicGeneratorHandle newMusicGenerator, RunInstanceHandle newRunInstance);
@@ -258,6 +260,16 @@ public:
     virtual void batchSet(AutoRegressiveBatchHandle batch, DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos) override;
     virtual void setMaxInputLength(int32_t newMaxInputLength) override;
     virtual void reset() override;
+
+    virtual void createHistory(const MidiTokenizer& tokenizer) override
+    {
+        history = std::make_unique<GenerationHistory>(tokenizer);
+    }
+    virtual GenerationHistory* getHistory(AutoRegressiveBatchHandle batchHandle) const override
+    {
+        return history.get(); // @TODO : add multiple batches support
+    }
+
 };
 
 class MusicGeneratorBuilder : public OnnxModelBuilder

@@ -877,6 +877,18 @@ void MusicGeneratorPipeline::generate(CppResult& outResult)
 void MusicGeneratorPipeline::postGenerate(CppResult& outResult)
 {
     musicGenerator->postGenerate(*runInstance, outResult);
+
+    // @TODO : add multiple batches support
+    assert(getNbBatches() == 1);
+    
+    if (history)
+    {
+        history->addEncodedToken(runInstance->batches[0]->lastGeneratedToken);
+        // for (Batch* batch : runInstance->batches)
+        // {
+        //     history.addEncodedToken(batch->lastGeneratedToken);
+        // }
+    }
 }
 
 AModel* MusicGeneratorPipeline::getModel() const

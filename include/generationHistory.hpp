@@ -59,11 +59,11 @@ public:
     }
 
     // const, must not be modified directly, must go through this class to be modified
-    const TokenHistory& getEncodedTokensHistory() const
+    TokenHistory& getEncodedTokensHistory()
     {
         return encodedTokensHistory;
     }
-    const TokenHistory& getDecodedTokensHistory() const
+    TokenHistory& getDecodedTokensHistory()
     {
         return decodedTokensHistory;
     }

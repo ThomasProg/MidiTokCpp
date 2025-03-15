@@ -1,3 +1,4 @@
+#include "generationHistory.h"
 #include "generationHistory.hpp"
 #include <cassert>
 #include "midiTokenizer.hpp"
@@ -43,4 +44,46 @@ void GenerationHistory::addEncodedToken(int32_t newEncodedToken)
     }
 
     encodedTokensHistory.addToken(newEncodedToken);
+}
+
+
+void addEncodedToken(const GenerationHistoryHandle genHistory, int32_t newEncodedToken)
+{
+    return genHistory->addEncodedToken(newEncodedToken);
+}
+
+bool hadEncodedTokenRecently(const GenerationHistoryHandle genHistory, int32_t token, int32_t maxAge)
+{
+    return genHistory->hadEncodedTokenRecently(token, maxAge);
+}
+bool hadDecodedTokenRecently(const GenerationHistoryHandle genHistory, int32_t token, int32_t maxAge)
+{
+    return genHistory->hadDecodedTokenRecently(token, maxAge);
+}
+
+TokenHistoryHandle getEncodedTokensHistory(const GenerationHistoryHandle genHistory)
+{
+    return &genHistory->getEncodedTokensHistory();
+}
+TokenHistoryHandle getDecodedTokensHistory(const GenerationHistoryHandle genHistory)
+{
+    return &genHistory->getDecodedTokensHistory();
+}
+
+
+
+
+void addToken(TokenHistoryHandle tokenHistory, int32_t newToken)
+{
+    return tokenHistory->addToken(newToken);
+}
+bool findMostRecentAge(TokenHistoryHandle tokenHistory, int32_t token, int32_t* outAge)
+{
+    assert(tokenHistory != nullptr && outAge != nullptr);
+    return tokenHistory->findMostRecentAge(token, *outAge);
+}
+bool hadTokenRecently(TokenHistoryHandle tokenHistory, int32_t token, int32_t maxAge)
+{
+    assert(tokenHistory != nullptr);
+    return tokenHistory->hadTokenRecently(token, maxAge);
 }

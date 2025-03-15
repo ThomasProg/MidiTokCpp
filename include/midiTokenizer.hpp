@@ -5,6 +5,7 @@
 #include <fstream>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <cassert>
 #include "json.hpp"
@@ -178,6 +179,28 @@ public:
         // Rests
         // _tpb_rests_to_ticks = __create_tpb_tokens_to_ticks(true);
 
+        __createDecodingCache();
+    }
+
+    std::vector<int32_t> decodedTokens;
+    std::vector<std::int32_t> encodedTokenToDecodedTokensBeginIndex;
+
+    void __createDecodingCache()
+    {
+        std::vector<int32_t> outDecodedTokens;
+        for (int32_t encodedToken = 0; encodedToken < getNbEncodedTokens(); ++encodedToken)
+        {
+            outDecodedTokens.clear();
+            decodeToken(encodedToken, outDecodedTokens);
+
+            const int32_t begin = int32_t(decodedTokens.size());
+            encodedTokenToDecodedTokensBeginIndex.push_back(begin);
+            for (const int32_t decodedToken : outDecodedTokens)
+            {
+                decodedTokens.push_back(decodedToken);
+            }
+        }
+        encodedTokenToDecodedTokensBeginIndex.push_back(int32_t(decodedTokens.size()));
     }
 
     int max_num_pos_per_beat() const
@@ -193,6 +216,14 @@ public:
     // Decode a single token
     // @TODO : optimize by simply setting a pointer (with size) instead of using a std::vector
     void decodeToken(std::int32_t encodedToken, std::vector<int32_t>& outDecodedTokens) const;
+    void decodeTokenFast(std::int32_t encodedToken, const int32_t*& outDecodedTokensBegin, const int32_t*& outDecodedTokensEnd) const
+    {
+        const std::int32_t begin = encodedTokenToDecodedTokensBeginIndex[encodedToken];
+        const std::int32_t end = encodedTokenToDecodedTokensBeginIndex[encodedToken+1];
+
+        outDecodedTokensBegin = decodedTokens.data() + begin;
+        outDecodedTokensEnd = decodedTokens.data() + end;
+    }
 
     std::vector<int32_t> encode(const Score& score);
     Score decode(const std::vector<int32_t>& tokens);

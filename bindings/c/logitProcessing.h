@@ -35,5 +35,12 @@ extern "C"
     } API_EXPORT SpecialPenaltyTransformArgs;
 
     API_EXPORT void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, GenerationHistory* history, const SpecialPenaltyTransformArgs* args);
+
+    // API_EXPORT void pitchSetPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges);
+    API_EXPORT void musicalScalePenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, const int32_t* pitches, int32_t nbPitches, float penaltyPerOutOfScalePitch, MidiTokenizerHandle tokenizer);
+
+    // Adds penalty for tokens not in that range
+    API_EXPORT void pitchRangePenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, const int32_t minPitch, const int32_t maxPitch, float penaltyPerOutOfRangePitch, MidiTokenizerHandle tokenizer);
+
 }
 

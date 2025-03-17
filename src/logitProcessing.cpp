@@ -299,12 +299,13 @@ void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges
         *outPenalty = 1.0;
 
         const MidiTokenizer& tokenizer = history->getTokenizer();
-        static thread_local std::vector<int32_t> decodedTokens;
-        decodedTokens.clear();
-        tokenizer.decodeToken(token, decodedTokens);
+        const int32_t* decodedTokensBegin;
+        const int32_t* decodedTokensEnd;
+        tokenizer.decodeTokenFast(token, decodedTokensBegin, decodedTokensEnd);
 
-        for (int32_t decodedToken : decodedTokens)
+        for (const int32_t* it = decodedTokensBegin; it != decodedTokensEnd; ++it)
         {
+            const int32_t decodedToken = *it;
             int32_t age;
             if (tokenizer.isPitch(decodedToken) && history->getDecodedTokensHistory().findMostRecentAge(token, age))
             {
@@ -316,4 +317,102 @@ void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges
     };
 
     customPenaltyTransformTemplated(logits, ranges, nbRanges, penaltyFunctor);
+}
+
+void musicalScalePenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, const int32_t* pitches, int32_t nbPitches, float penaltyPerOutOfScalePitch, MidiTokenizerHandle tokenizer)
+{
+    constexpr int32_t nbPitchesPerOctave = 12;
+    assert(nbPitches > 0 && nbPitches <= nbPitchesPerOctave);
+    assert((pitches + nbPitches) == std::find_if(pitches, pitches+nbPitches, [nbPitchesPerOctave](int32_t pitch) 
+        { return pitch > nbPitchesPerOctave; }));
+
+    auto penaltyFunctor = [pitches, nbPitches, nbPitchesPerOctave, penaltyPerOutOfScalePitch, tokenizer](const int32_t token, float* outPenalty) -> bool
+    {
+        *outPenalty = 1.0;
+
+        const int32_t* decodedTokensBegin;
+        const int32_t* decodedTokensEnd;
+        tokenizer->decodeTokenFast(token, decodedTokensBegin, decodedTokensEnd);
+
+        for (const int32_t* it = decodedTokensBegin; it != decodedTokensEnd; ++it)
+        {
+            const int32_t decodedToken = *it;
+            if (tokenizer->isPitch(decodedToken))
+            {
+                const int32_t pitch = tokenizer->getPitchValue(decodedToken) % nbPitchesPerOctave;
+                const int32_t* pitchesEnd = pitches+nbPitches;
+                // linear search faster than dichotomy for small arrays (and nbPitches <= 12)
+                if (std::find(pitches, pitchesEnd, pitch) == pitchesEnd) // if not in scale, then penalty
+                {
+                    *outPenalty += penaltyPerOutOfScalePitch;
+                }
+            }
+        }
+
+        return true;
+    };
+
+    customPenaltyTransformTemplated(logits, ranges, nbRanges, penaltyFunctor);
+}
+
+void pitchRangePenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, const int32_t minPitch, const int32_t maxPitch, float penaltyPerOutOfRangePitch, MidiTokenizerHandle tokenizer)
+{
+    auto penaltyFunctor = [tokenizer, minPitch, maxPitch, penaltyPerOutOfRangePitch](const int32_t token, float* outPenalty) -> bool
+    {
+        *outPenalty = 1.0;
+
+        const int32_t* decodedTokensBegin;
+        const int32_t* decodedTokensEnd;
+        tokenizer->decodeTokenFast(token, decodedTokensBegin, decodedTokensEnd);
+
+        for (const int32_t* it = decodedTokensBegin; it != decodedTokensEnd; ++it)
+        {
+            const int32_t decodedToken = *it;
+            if (tokenizer->isPitch(decodedToken))
+            {
+                const int32_t pitch = tokenizer->getPitchValue(decodedToken);
+                if (pitch < minPitch || pitch > maxPitch)
+                {
+                    *outPenalty += penaltyPerOutOfRangePitch;
+                }
+            }
+        }
+
+        return true;
+    };
+
+    customPenaltyTransformTemplated(logits, ranges, nbRanges, penaltyFunctor);
+}
+
+constexpr int32_t ionianCMajor[] = {60%12, 62%12, 64%12, 65%12, 67%12, 69%12, 71%12, 72%12};
+constexpr int32_t aeolianCNatural[] = {60%12, 62%12, 63%12, 65%12, 67%12, 68%12, 70%12, 72%12};
+constexpr int32_t harmonicCMinor[] = {60%12, 62%12, 63%12, 65%12, 67%12, 68%12, 71%12, 72%12};
+constexpr int32_t ascendingMelodicCMinor[] = {60%12, 62%12, 63%12, 65%12, 67%12, 69%12, 71%12, 72%12};
+
+template<typename T, int32_t N>
+constexpr std::array<T, N>& modArray(std::array<int, 8> arr, int32_t modValue)
+{
+    for (std::size_t i = 0; i < arr.size(); ++i) 
+    {
+        arr[i] = i % modValue;
+    }
+    return arr;
+}
+
+namespace Scales::Ionian::CMajor
+{
+constexpr std::array<int, 8> IonianCMajor() 
+{
+    constexpr std::array<int, 8> arr = {60, 62, 64, 65, 67, 69, 71, 72};
+    return modArray<int, 8>(arr, 12);
+}
+
+constexpr const int32_t* get()
+{
+    return IonianCMajor().data();
+}
+constexpr int32_t size()
+{
+    return int32_t(IonianCMajor().size());
+}
 }

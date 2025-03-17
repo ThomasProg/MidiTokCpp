@@ -447,8 +447,14 @@ void MidiTokenizer::loadFromJson(const std::string& filename)
     __vocab_base_inv.clear();
     for (auto& [key, value] : data.items())
     {
-        if (key == "tokenization" || key == "miditok_version")
+        if (key == "miditok_version")
             continue;
+
+        if (key == "tokenization")
+        {
+            tokenization = value.template get<std::string>();
+            continue;
+        }
 
         if (key == "_vocab_base")
         {

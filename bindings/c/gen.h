@@ -120,6 +120,11 @@ extern "C"
 
     API_EXPORT std::int32_t tokenizer_getNbEncodedTokens(MidiTokenizerHandle tokenizer);
     API_EXPORT std::int32_t tokenizer_getNbDecodedTokens(MidiTokenizerHandle tokenizer);
+
+    API_EXPORT bool tokenizer_useVelocities(MidiTokenizerHandle tokenizer);
+    API_EXPORT bool tokenizer_useDuration(MidiTokenizerHandle tokenizer);
+    API_EXPORT bool tokenizer_useTimeSignatures(MidiTokenizerHandle tokenizer);
+    API_EXPORT const char* tokenizer_getTokenizationType(MidiTokenizerHandle tokenizer);
 }
 
 

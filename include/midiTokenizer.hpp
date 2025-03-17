@@ -33,6 +33,9 @@ private:
     bool bUseDuration = false;
     bool bUseTimeSignatures = false;
 
+    // "REMI", "TSD"
+    std::string tokenization;
+
 protected:    
     // vocab of prime tokens, can be viewed as unique char / bytes
     std::map<std::string, int32_t> _vocab_base;
@@ -187,20 +190,27 @@ public:
 
     void __createDecodingCache()
     {
-        std::vector<int32_t> outDecodedTokens;
-        for (int32_t encodedToken = 0; encodedToken < getNbEncodedTokens(); ++encodedToken)
-        {
-            outDecodedTokens.clear();
-            decodeToken(encodedToken, outDecodedTokens);
+        int32_t nbEncodedTokens = getNbEncodedTokens();
+        encodedTokenToDecodedTokensBeginIndex.resize(nbEncodedTokens+1);
 
+        std::vector<int32_t> outDecodedTokens;
+        for (int32_t encodedToken = 0; encodedToken < nbEncodedTokens; ++encodedToken)
+        {
             const int32_t begin = int32_t(decodedTokens.size());
-            encodedTokenToDecodedTokensBeginIndex.push_back(begin);
-            for (const int32_t decodedToken : outDecodedTokens)
+            encodedTokenToDecodedTokensBeginIndex[encodedToken] = begin;
+
+            outDecodedTokens.clear();
+            try
             {
-                decodedTokens.push_back(decodedToken);
+                decodeToken(encodedToken, outDecodedTokens);
+                for (const int32_t decodedToken : outDecodedTokens)
+                {
+                    decodedTokens.push_back(decodedToken);
+                }
             }
+            catch (const std::exception&) {}
         }
-        encodedTokenToDecodedTokensBeginIndex.push_back(int32_t(decodedTokens.size()));
+        encodedTokenToDecodedTokensBeginIndex.back() = int32_t(decodedTokens.size());
     }
 
     int max_num_pos_per_beat() const
@@ -449,6 +459,16 @@ public:
     bool useDuration() const
     {
         return bUseDuration;
+    }
+
+    bool useTimeSignatures() const
+    {
+        return bUseDuration;
+    }
+
+    const char* getTokenizationType() const
+    {
+        return tokenization.c_str();
     }
 };
 

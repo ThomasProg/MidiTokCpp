@@ -281,6 +281,23 @@ std::int32_t tokenizer_getNbDecodedTokens(MidiTokenizerHandle tokenizer)
     return tokenizer->getNbDecodedTokens();
 }
 
+bool tokenizer_useVelocities(MidiTokenizerHandle tokenizer)
+{
+    return tokenizer->useVelocities();
+}
+bool tokenizer_useDuration(MidiTokenizerHandle tokenizer)
+{
+    return tokenizer->useDuration();
+}
+bool tokenizer_useTimeSignatures(MidiTokenizerHandle tokenizer)
+{
+    return tokenizer->useTimeSignatures();
+}
+const char* tokenizer_getTokenizationType(MidiTokenizerHandle tokenizer)
+{
+    return tokenizer->getTokenizationType();
+}
+
 BatchHandle createBatch()
 {
     return new Batch();

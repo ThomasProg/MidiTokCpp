@@ -940,7 +940,7 @@ void MidiTokenizer::addTokensStartingByPitch(RangeGroup& outRangeGroup)
         if (!decodedTokens.empty())
         {
             std::int32_t decodedToken = decodedTokens[0];
-            if (isPitch(decodedToken))
+            if (isPitchFast(decodedToken))
             {
                 outRangeGroup.add(token);
             }

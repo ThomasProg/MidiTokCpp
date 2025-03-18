@@ -419,7 +419,8 @@ bool isPosition(MidiTokenizerHandle tokenizer, std::int32_t token)
 }
 bool isPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
 {
-    return tokenizer->isPitch(token);
+    // return tokenizer->isPitch(token);
+    return tokenizer->isPitchFast(token);
 }
 bool isDuration(MidiTokenizerHandle tokenizer, std::int32_t token)
 {
@@ -436,7 +437,8 @@ std::int32_t getPosition(MidiTokenizerHandle tokenizer, std::int32_t token)
 }
 std::int32_t getPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
 {
-    return tokenizer->getPitchValue(token);
+    // return tokenizer->getPitchValue(token);
+    return std::int32_t(tokenizer->getPitchValueFast(token));
 }
 
 

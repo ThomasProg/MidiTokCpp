@@ -44,11 +44,11 @@ bool REMIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::i
         index++;
         return true;
     }
-    else if (tokenizer.isPitch(token)/* || tokenizer.isPitchDrum(token) || tokenizer.isPitchIntervalTime(token) || tokenizer.isPitchIntervalChord(token)*/)
+    else if (tokenizer.isPitchFast(token)/* || tokenizer.isPitchDrum(token) || tokenizer.isPitchIntervalTime(token) || tokenizer.isPitchIntervalChord(token)*/)
     {
-        if (tokenizer.isPitch(token))
+        if (tokenizer.isPitchFast(token))
         {
-            std::int32_t pitch = tokenizer.getPitchValue(token);
+            std::int32_t pitch = tokenizer.getPitchValueFast(token);
 
             // bool useVelocities = true;
             // if (useVelocities)
@@ -112,9 +112,9 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
         index++;
         return true;
     }
-    else if (tok.isPitch(token)) // @TODO : PitchDrum, PitchIntervalTime, PitchIntervalChord
+    else if (tok.isPitchFast(token)) // @TODO : PitchDrum, PitchIntervalTime, PitchIntervalChord
     {
-        std::int32_t pitch = tok.getPitchValue(token);
+        std::int32_t pitch = tok.getPitchValueFast(token);
 
         std::int32_t velocity = defaultVelocity;
         std::int32_t duration = defaultDuration;

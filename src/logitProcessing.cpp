@@ -307,7 +307,7 @@ void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges
         {
             const int32_t decodedToken = *it;
             int32_t age;
-            if (tokenizer.isPitch(decodedToken) && history->getDecodedTokensHistory().findMostRecentAge(token, age))
+            if (tokenizer.isPitchFast(decodedToken) && history->getDecodedTokensHistory().findMostRecentAge(token, age))
             {
                 *outPenalty += args.pitchMaxAdditivePenalty * (1.f - float(age) / args.pitchWindowSize);
             }
@@ -337,9 +337,9 @@ void musicalScalePenaltyTransform(float* logits, const Range* ranges, size_t nbR
         for (const int32_t* it = decodedTokensBegin; it != decodedTokensEnd; ++it)
         {
             const int32_t decodedToken = *it;
-            if (tokenizer->isPitch(decodedToken))
+            if (tokenizer->isPitchFast(decodedToken))
             {
-                const int32_t pitch = tokenizer->getPitchValue(decodedToken) % nbPitchesPerOctave;
+                const int32_t pitch = tokenizer->getPitchValueFast(decodedToken) % nbPitchesPerOctave;
                 const int32_t* pitchesEnd = pitches+nbPitches;
                 // linear search faster than dichotomy for small arrays (and nbPitches <= 12)
                 if (std::find(pitches, pitchesEnd, pitch) == pitchesEnd) // if not in scale, then penalty
@@ -368,9 +368,9 @@ void pitchRangePenaltyTransform(float* logits, const Range* ranges, size_t nbRan
         for (const int32_t* it = decodedTokensBegin; it != decodedTokensEnd; ++it)
         {
             const int32_t decodedToken = *it;
-            if (tokenizer->isPitch(decodedToken))
+            if (tokenizer->isPitchFast(decodedToken))
             {
-                const int32_t pitch = tokenizer->getPitchValue(decodedToken);
+                const int32_t pitch = tokenizer->getPitchValueFast(decodedToken);
                 if (pitch < minPitch || pitch > maxPitch)
                 {
                     *outPenalty += penaltyPerOutOfRangePitch;

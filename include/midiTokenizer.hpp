@@ -60,6 +60,12 @@ protected:
     std::map<int, std::vector<int>> _time_signature_range;
     std::map<std::string, std::vector<int>> _chord_maps;
 
+    // Cache
+    std::vector<int32_t> decodedTokens;
+    std::vector<std::int32_t> encodedTokenToDecodedTokensBeginIndex;
+
+    std::vector<uint8_t> decodedTokenToPitch;
+
 public:
 
     std::map<int, int> _tpb_per_ts;
@@ -183,10 +189,8 @@ public:
         // _tpb_rests_to_ticks = __create_tpb_tokens_to_ticks(true);
 
         __createDecodingCache();
+        __createDecodedToPitchCache();
     }
-
-    std::vector<int32_t> decodedTokens;
-    std::vector<std::int32_t> encodedTokenToDecodedTokensBeginIndex;
 
     void __createDecodingCache()
     {
@@ -211,6 +215,19 @@ public:
             catch (const std::exception&) {}
         }
         encodedTokenToDecodedTokensBeginIndex.back() = int32_t(decodedTokens.size());
+    }
+
+    void __createDecodedToPitchCache()
+    {
+        int32_t nbDecodedTokens = getNbDecodedTokens();
+        decodedTokenToPitch.resize(nbDecodedTokens);
+        for (int32_t decodedToken = 0; decodedToken < nbDecodedTokens; ++decodedToken)
+        {
+            if (isPitch(decodedToken))
+            {
+                decodedTokenToPitch[decodedToken] = int8_t(getPitchValue(decodedToken));
+            }
+        }
     }
 
     int max_num_pos_per_beat() const
@@ -358,10 +375,20 @@ public:
         return startBy(str.c_str(), "Pitch_");
     }
 
+    bool isPitchFast(std::int32_t token) const
+    {
+        return decodedTokenToPitch[token] != 0;
+    }
+
     std::int32_t getPitchValue(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return getUniqueValueInt(str);
+    }
+
+    std::uint8_t getPitchValueFast(std::int32_t token) const
+    {
+        return decodedTokenToPitch[token];
     }
 
     bool isDuration(std::int32_t token) const

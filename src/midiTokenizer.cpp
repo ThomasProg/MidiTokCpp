@@ -872,130 +872,50 @@ bool MidiTokenizer::is_trained() const
 //             score.dump_midi(output_path)
 //     return score
 
-void MidiTokenizer::addTokensStartingByPosition(RangeGroup& outRangeGroup)
+template<typename PREDICATE>
+void MidiTokenizer::addTokensStartingBy(RangeGroup& outRangeGroup, PREDICATE predicate)
 {
-    std::vector<int32_t> decodedTokens(10);
     for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
     {
-        try 
-        {
-            decodeToken(token, decodedTokens);
-        }
-        catch (const std::exception&)
-        {
-            continue;
-        }
+        const int32_t* outDecodedTokensBegin;
+        const int32_t* outDecodedTokensEnd;
+        decodeTokenFast(token, outDecodedTokensBegin, outDecodedTokensEnd);
 
-        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
-        if (!decodedTokens.empty())
+        if (outDecodedTokensBegin != outDecodedTokensEnd)
         {
-            std::int32_t decodedToken = decodedTokens[0];
-            if (isPosition(decodedToken))
+            std::int32_t decodedToken = outDecodedTokensBegin[0];
+            if (((*this).*predicate)(decodedToken))
             {
                 outRangeGroup.add(token);
             }
         }
     }
+}
+
+void MidiTokenizer::addTokensStartingByPosition(RangeGroup& outRangeGroup)
+{
+    addTokensStartingBy(outRangeGroup, &MidiTokenizer::isPosition);
 }
 void MidiTokenizer::addTokensStartingByBarNone(RangeGroup& outRangeGroup)
 {
-    std::vector<int32_t> decodedTokens(10);
-    for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
-    {
-        try 
-        {
-            decodeToken(token, decodedTokens);
-        }
-        catch (const std::exception&)
-        {
-            continue;
-        }
-
-        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
-        if (!decodedTokens.empty())
-        {
-            std::int32_t decodedToken = decodedTokens[0];
-            if (isBarNone(decodedToken))
-            {
-                outRangeGroup.add(token);
-            }
-        }
-    }
+    addTokensStartingBy(outRangeGroup, &MidiTokenizer::isBarNone);
 }
 void MidiTokenizer::addTokensStartingByPitch(RangeGroup& outRangeGroup)
 {
-    std::vector<int32_t> decodedTokens(10);
-    for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
-    {
-        try 
-        {
-            decodeToken(token, decodedTokens);
-        }
-        catch (const std::exception&)
-        {
-            continue;
-        }
-
-        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
-        if (!decodedTokens.empty())
-        {
-            std::int32_t decodedToken = decodedTokens[0];
-            if (isPitchFast(decodedToken))
-            {
-                outRangeGroup.add(token);
-            }
-        }
-    }
+    addTokensStartingBy(outRangeGroup, &MidiTokenizer::isPitchFast);
 }
 void MidiTokenizer::addTokensStartingByVelocity(RangeGroup& outRangeGroup)
 {
-    std::vector<int32_t> decodedTokens(10);
-    for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
-    {
-        try 
-        {
-            decodeToken(token, decodedTokens);
-        }
-        catch (const std::exception&)
-        {
-            continue;
-        }
-
-        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
-        if (!decodedTokens.empty())
-        {
-            std::int32_t decodedToken = decodedTokens[0];
-            if (isVelocity(decodedToken))
-            {
-                outRangeGroup.add(token);
-            }
-        }
-    }
+    addTokensStartingBy(outRangeGroup, &MidiTokenizer::isVelocity);
 }
 void MidiTokenizer::addTokensStartingByDuration(RangeGroup& outRangeGroup)
 {
-    std::vector<int32_t> decodedTokens(10);
-    for (std::int32_t token = 0; token < _vocab_learned_bytes_to_tokens.size(); token++)
-    {
-        try 
-        {
-            decodeToken(token, decodedTokens);
-        }
-        catch (const std::exception&)
-        {
-            continue;
-        }
+    addTokensStartingBy(outRangeGroup, &MidiTokenizer::isDuration);
+}
 
-        // for (std::int32_t i = 0; i < decodedTokens.size(); i++)
-        if (!decodedTokens.empty())
-        {
-            std::int32_t decodedToken = decodedTokens[0];
-            if (isDuration(decodedToken))
-            {
-                outRangeGroup.add(token);
-            }
-        }
-    }
+void MidiTokenizer::addTokensStartingByTimeShift(RangeGroup& outRangeGroup)
+{
+    addTokensStartingBy(outRangeGroup, &MidiTokenizer::isTimeShift);
 }
 
 const std::string& MidiTokenizer::decodedTokenToString(int32_t decodedToken)

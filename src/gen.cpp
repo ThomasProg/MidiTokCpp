@@ -265,6 +265,11 @@ void tokenizer_addTokensStartingByDuration(MidiTokenizerHandle tokenizer, RangeG
     tokenizer->addTokensStartingByDuration(*outRangeGroup);
 }
 
+void tokenizer_addTokensStartingByTimeShift(MidiTokenizerHandle tokenizer, RangeGroupHandle outRangeGroup)
+{
+    return tokenizer->addTokensStartingByTimeShift(*outRangeGroup);
+}
+
 const char* tokenizer_decodedTokenToString(MidiTokenizerHandle tokenizer, std::int32_t decodedToken)
 {
     const std::string& str = tokenizer->decodedTokenToString(decodedToken);

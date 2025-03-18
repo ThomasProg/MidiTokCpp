@@ -469,11 +469,15 @@ public:
         return startBy(str.c_str(), "PitchBend_");
     }
 
+    template<typename PREDICATE>
+    void addTokensStartingBy(RangeGroup& outRangeGroup, PREDICATE predicate);
+
     void addTokensStartingByPosition(RangeGroup& outRangeGroup);
     void addTokensStartingByBarNone(RangeGroup& outRangeGroup);
     void addTokensStartingByPitch(RangeGroup& outRangeGroup);
     void addTokensStartingByVelocity(RangeGroup& outRangeGroup);
     void addTokensStartingByDuration(RangeGroup& outRangeGroup);
+    void addTokensStartingByTimeShift(RangeGroup& outRangeGroup);
 
 
     const std::string& decodedTokenToString(int32_t decodedToken);

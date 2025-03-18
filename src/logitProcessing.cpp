@@ -89,7 +89,7 @@ void softmaxRange(const SearchArgs* args, const Range* ranges, size_t nbRanges)
 
 void stableSoftmax(float* logits, int32_t* indicesBegin, int32_t* indicesEnd)
 {
-    float sum = 0;
+    float sum = 0.0;
 
     int32_t maxLogitIndex = *std::max_element(indicesBegin, indicesEnd, [logits](int32_t a, int32_t b)
     {
@@ -109,10 +109,13 @@ void stableSoftmax(float* logits, int32_t* indicesBegin, int32_t* indicesEnd)
         logits[token] = currentLogit;
     }
 
-    for (int32_t* indicesIt = indicesBegin; indicesIt < indicesEnd; ++indicesIt)
+    if (sum != 0.0)
     {
-        const int32_t token = *indicesIt;
-        logits[token] /= sum;
+        for (int32_t* indicesIt = indicesBegin; indicesIt < indicesEnd; ++indicesIt)
+        {
+            const int32_t token = *indicesIt;
+            logits[token] /= sum;
+        }
     }
 }
 void softmax(float* logits, int32_t* indicesBegin, int32_t* indicesEnd)

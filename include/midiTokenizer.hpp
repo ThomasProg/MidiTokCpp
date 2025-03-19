@@ -357,6 +357,9 @@ public:
         return getUniqueValueStr(str);
     }
 
+    void getTimeShiftValuei(std::int32_t token, int& nbBeats, int& nbSamples, int& resolution) const;
+    float getTimeShiftValuef(std::int32_t token) const;
+
     bool isPosition(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);

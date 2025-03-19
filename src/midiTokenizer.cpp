@@ -922,3 +922,25 @@ const std::string& MidiTokenizer::decodedTokenToString(int32_t decodedToken)
 {
     return __vocab_base_inv[decodedToken];
 }
+
+#include <sstream>
+
+void MidiTokenizer::getTimeShiftValuei(std::int32_t token, int& nbBeats, int& nbSamples, int& resolution) const
+{
+    std::string str = getTimeShiftValue(token);
+    std::stringstream ss(str);
+    std::string s;
+    std::getline(ss, s, '.');
+    nbBeats = std::stoi(s);
+    std::getline(ss, s, '.');
+    nbSamples = std::stoi(s);
+    ss >> s;
+    resolution = std::stoi(s);
+}
+
+float MidiTokenizer::getTimeShiftValuef(std::int32_t token) const
+{
+    int nbBeats, nbSamples, resolution;
+    getTimeShiftValuei(token, nbBeats, nbSamples, resolution);
+    return float(nbBeats) + float(nbSamples) / float(resolution);
+}

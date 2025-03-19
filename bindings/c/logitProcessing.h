@@ -41,7 +41,7 @@ extern "C"
 
     // Adds penalty for tokens not in that range
     API_EXPORT void pitchRangePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, const int32_t minPitch, const int32_t maxPitch, float penaltyPerOutOfRangePitch, MidiTokenizerHandle tokenizer);
-    // API_EXPORT void timeShiftRangePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, const int32_t minTimeShift, const int32_t maxTimeShift, float penaltyPerOutOfRangeTimeShift, MidiTokenizerHandle tokenizer);
+    API_EXPORT void timeShiftRangePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, const float minTimeShift, const float maxTimeShift, float penaltyPerOutOfRangeTimeShift, MidiTokenizerHandle tokenizer);
 
 }
 

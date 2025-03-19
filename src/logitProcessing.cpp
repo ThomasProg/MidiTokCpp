@@ -385,35 +385,35 @@ void pitchRangePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, cons
     customPenaltyTransformTemplated(logits, *rangeGroup, penaltyFunctor);
 }
 
-// void timeShiftRangePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, const int32_t minTimeShift, const int32_t maxTimeShift, float penaltyPerOutOfRangeTimeShift, MidiTokenizerHandle tokenizer)
-// {
-//     assert(rangeGroup != nullptr && tokenizer != nullptr);
-//     auto penaltyFunctor = [tokenizer, minTimeShift, maxTimeShift, penaltyPerOutOfRangeTimeShift](const int32_t token, float* outPenalty) -> bool
-//     {
-//         *outPenalty = 1.0;
+void timeShiftRangePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, const float minTimeShift, const float maxTimeShift, float penaltyPerOutOfRangeTimeShift, MidiTokenizerHandle tokenizer)
+{
+    assert(rangeGroup != nullptr && tokenizer != nullptr);
+    auto penaltyFunctor = [tokenizer, minTimeShift, maxTimeShift, penaltyPerOutOfRangeTimeShift](const int32_t token, float* outPenalty) -> bool
+    {
+        *outPenalty = 1.0;
 
-//         const int32_t* decodedTokensBegin;
-//         const int32_t* decodedTokensEnd;
-//         tokenizer->decodeTokenFast(token, decodedTokensBegin, decodedTokensEnd);
+        const int32_t* decodedTokensBegin;
+        const int32_t* decodedTokensEnd;
+        tokenizer->decodeTokenFast(token, decodedTokensBegin, decodedTokensEnd);
 
-//         for (const int32_t* it = decodedTokensBegin; it != decodedTokensEnd; ++it)
-//         {
-//             const int32_t decodedToken = *it;
-//             if (tokenizer->isTimeShift(decodedToken))
-//             {
-//                 // const int32_t pitch = tokenizer->getTimeShiftValue(decodedToken);
-//                 // if (pitch < minTimeShift || pitch > maxTimeShift)
-//                 // {
-//                 //     *outPenalty += penaltyPerOutOfRangeTimeShift;
-//                 // }
-//             }
-//         }
+        for (const int32_t* it = decodedTokensBegin; it != decodedTokensEnd; ++it)
+        {
+            const int32_t decodedToken = *it;
+            if (tokenizer->isTimeShift(decodedToken))
+            {
+                const float timeShift = tokenizer->getTimeShiftValuef(decodedToken);
+                if (timeShift < (minTimeShift+std::numeric_limits<float>::epsilon()) || (timeShift > maxTimeShift-std::numeric_limits<float>::epsilon()))
+                {
+                    *outPenalty += penaltyPerOutOfRangeTimeShift;
+                }
+            }
+        }
 
-//         return true;
-//     };
+        return true;
+    };
 
-//     customPenaltyTransformTemplated(logits, *rangeGroup, penaltyFunctor);
-// }
+    customPenaltyTransformTemplated(logits, *rangeGroup, penaltyFunctor);
+}
 
 constexpr int32_t ionianCMajor[] = {60%12, 62%12, 64%12, 65%12, 67%12, 69%12, 71%12, 72%12};
 constexpr int32_t aeolianCNatural[] = {60%12, 62%12, 63%12, 65%12, 67%12, 68%12, 70%12, 72%12};

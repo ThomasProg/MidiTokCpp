@@ -19,6 +19,9 @@ class RangeGroup
     std::vector<Range> ranges;
     size_t totalSize = 0;
 
+    std::vector<int32_t> fullSequenceCache;
+    bool isDirty = false;
+
 public:
     // Uses dichotomy search
     // Returns an index
@@ -38,6 +41,7 @@ public:
 
     inline void add(std::int32_t x)
     {
+        isDirty = true;
         addRange({x,x});
     }
 
@@ -55,7 +59,34 @@ public:
 
     // write all ints in that RangeGroup inside an array
     // size of the array must be size()
-    void write(int32_t* writeBuffer);
+    void write(int32_t* writeBuffer) const;
+
+    void updateCache()
+    {
+        if (isDirty)
+        {
+            fullSequenceCache.resize(size());
+            write(fullSequenceCache.data());
+            isDirty = false;
+        }
+    }
+
+    using iterator = std::vector<int32_t>::iterator;
+    using reverse_iterator = std::vector<int32_t>::reverse_iterator;
+    using const_iterator = std::vector<int32_t>::const_iterator;
+    using const_reverse_iterator = std::vector<int32_t>::const_reverse_iterator;
+
+    iterator begin() { assert(!isDirty); return fullSequenceCache.begin(); }
+    iterator end()   { assert(!isDirty); return fullSequenceCache.end(); }
+    const_iterator begin() const { assert(!isDirty); return fullSequenceCache.cbegin(); }
+    const_iterator end() const  { assert(!isDirty); return fullSequenceCache.cend(); }
+    const_iterator cbegin() const { return begin(); }
+    const_iterator cend() const  { return end(); }
+
+    reverse_iterator rbegin() { assert(!isDirty); return fullSequenceCache.rbegin(); }
+    reverse_iterator rend()   { assert(!isDirty); return fullSequenceCache.rend(); }
+    const_reverse_iterator rcbegin() const { assert(!isDirty); return fullSequenceCache.crbegin(); }
+    const_reverse_iterator rcend() const  { assert(!isDirty); return fullSequenceCache.crend(); }
 };
 
 

@@ -1,3 +1,4 @@
+#include <cassert>
 #include "range.h"
 #include "range.hpp"
 
@@ -53,6 +54,7 @@ bool RangeGroup::findRange(std::int32_t x, std::size_t beginIndex, std::size_t e
 
 void RangeGroup::addRange(Range newRange)
 {
+    isDirty = true;
     // std::size_t lastRangeIndexMin = findLastRangeBeforeX(newRange.min);
     // std::size_t lastRangeIndexMax = findLastRangeBeforeX(newRange.max);
     // if (lastRangeIndexMin == ranges.back() && lastRangeIndexMax == ranges.back())
@@ -101,7 +103,7 @@ void RangeGroup::addRange(Range newRange)
     ranges.erase(ranges.begin() + startIndex + 1, ranges.begin() + endIndex);
 }
 
-void RangeGroup::write(int32_t* writeBuffer)
+void RangeGroup::write(int32_t* writeBuffer) const
 {
     for (const Range& range : ranges)
     {
@@ -125,10 +127,18 @@ bool rangeSize(const Range* a)
 
 uint64_t rangeGroupSize(const RangeGroupHandle rangeGroup)
 {
+    assert(rangeGroup != nullptr);
     return rangeGroup->size();
 }
 
 void rangeGroupWrite(const RangeGroupHandle rangeGroup, int32_t* buffer)
 {
+    assert(rangeGroup != nullptr);
     rangeGroup->write(buffer);
+}
+
+void rangeGroupUpdateCache(const RangeGroupHandle rangeGroup)
+{
+    assert(rangeGroup != nullptr);
+    rangeGroup->updateCache();
 }

@@ -9,12 +9,13 @@
 #include <cassert>
 #include "midiTokenizer.hpp"
 #include "generationHistory.hpp"
+#include "range.hpp"
 
 // numerically stable softmax ; reduces overflows, but costs slightly more
 // substract by max logit
 // low logits will become 0
 // high logits will have better precision
-void stableSoftmaxRange(const SearchArgs& args, const Range* ranges, size_t nbRanges)
+void stableSoftmaxRange(const SearchArgs& args, const RangeGroup& rangeGroup)
 {
     for (int32_t b = 0; b < args.nbBatches; ++b)
     {
@@ -24,71 +25,65 @@ void stableSoftmaxRange(const SearchArgs& args, const Range* ranges, size_t nbRa
 
         float maxLogit = *std::max_element(batchLogits, batchLogits + batchLogitsSize);
 
-        for (int32_t rangeIndex = 0; rangeIndex < nbRanges; rangeIndex++)
+        for (int32_t token : rangeGroup)
         {
-            for (int32_t token = ranges[rangeIndex].min; token <= ranges[rangeIndex].max; token++)
-            {
-                float currentLogit = batchLogits[token];
+            float currentLogit = batchLogits[token];
 
-                currentLogit = std::exp(currentLogit - maxLogit);
-                sum += currentLogit;
+            currentLogit = std::exp(currentLogit - maxLogit);
+            sum += currentLogit;
 
-                batchLogits[token] = currentLogit;
-            }
+            batchLogits[token] = currentLogit;
         }
-        
-        for (int32_t rangeIndex = 0; rangeIndex < nbRanges; rangeIndex++)
+
+        for (int32_t token : rangeGroup)
         {
-            for (int32_t token = ranges[rangeIndex].min; token <= ranges[rangeIndex].max; token++)
-            {
-                batchLogits[token] /= sum;
-            }
+            batchLogits[token] /= sum;
         }
     }
 }
 
-void stableSoftmaxRange(const SearchArgs* args, const Range* ranges, size_t nbRanges)
+void stableSoftmaxRange(const SearchArgs* args, RangeGroupHandle rangeGroup)
 {
-    stableSoftmaxRange(*args, ranges, nbRanges);
+    assert(rangeGroup != nullptr);
+    stableSoftmaxRange(*args, *rangeGroup);
 }
 
-void softmaxRange(const SearchArgs& args, const Range* ranges, size_t nbRanges)
+void softmaxRange(const SearchArgs& args, const RangeGroup& rangeGroup)
 {
     for (int32_t b = 0; b < args.nbBatches; ++b)
     {
         float* batchLogits = args.logitsTensor + b * args.vocabSize;
         float sum = 0;
 
-        for (int32_t rangeIndex = 0; rangeIndex < nbRanges; rangeIndex++)
+        for (int32_t token : rangeGroup)
         {
-            for (int32_t token = ranges[rangeIndex].min; token <= ranges[rangeIndex].max; token++)
-            {
-                float currentLogit = batchLogits[token];
+            float currentLogit = batchLogits[token];
 
-                currentLogit = std::exp(currentLogit);
-                sum += currentLogit;
+            currentLogit = std::exp(currentLogit);
+            sum += currentLogit;
 
-                batchLogits[token] = currentLogit;
-            }
+            batchLogits[token] = currentLogit;
         }
 
-        for (int32_t rangeIndex = 0; rangeIndex < nbRanges; rangeIndex++)
+        for (int32_t token : rangeGroup)
         {
-            for (int32_t token = ranges[rangeIndex].min; token <= ranges[rangeIndex].max; token++)
-            {
-                batchLogits[token] /= sum;
-            }
+            batchLogits[token] /= sum;
         }
     }
 }
 
-void softmaxRange(const SearchArgs* args, const Range* ranges, size_t nbRanges)
+void softmaxRange(const SearchArgs* args, RangeGroupHandle rangeGroup)
 {
-    softmaxRange(*args, ranges, nbRanges);
+    softmaxRange(*args, *rangeGroup);
 }
 
 void stableSoftmax(float* logits, int32_t* indicesBegin, int32_t* indicesEnd)
 {
+    if (indicesBegin == indicesEnd)
+    {
+        return;
+    }
+
     float sum = 0.0;
 
     int32_t maxLogitIndex = *std::max_element(indicesBegin, indicesEnd, [logits](int32_t a, int32_t b)
@@ -109,7 +104,7 @@ void stableSoftmax(float* logits, int32_t* indicesBegin, int32_t* indicesEnd)
         logits[token] = currentLogit;
     }
 
-    if (sum != 0.0)
+    if (sum > std::numeric_limits<float>::epsilon())
     {
         for (int32_t* indicesIt = indicesBegin; indicesIt < indicesEnd; ++indicesIt)
         {
@@ -230,51 +225,50 @@ int32_t topPSampling(float* logits, int32_t* indicesStart, int32_t* indicesEnd, 
     return topKSampling(logits, indicesStart, cutoffIndexIt);
 }
 
-void temperatureTransform(float* logits, const Range* ranges, size_t nbRanges, float temperature)
+void temperatureTransform(float* logits, RangeGroupHandle rangeGroup, float temperature)
 {
-    for (int32_t rangeIndex = 0; rangeIndex < nbRanges; rangeIndex++)
+    assert(rangeGroup != nullptr);
+    const RangeGroup& rg = *rangeGroup;
+    for (int32_t token : rg)
     {
-        for (int32_t token = ranges[rangeIndex].min; token <= ranges[rangeIndex].max; token++)
-        {
-            logits[token] /= temperature;
-        }
+        logits[token] /= temperature;
     }
 }
 
 template<typename F>
-inline void customPenaltyTransformTemplated(float* logits, const Range* ranges, size_t nbRanges, F&& penaltyFunctor)
+inline void customPenaltyTransformTemplated(float* logits, const RangeGroup& rangeGroup, F&& penaltyFunctor)
 {
-    for (int32_t rangeIndex = 0; rangeIndex < nbRanges; rangeIndex++)
+    for (int32_t token : rangeGroup)
     {
-        for (int32_t token = ranges[rangeIndex].min; token <= ranges[rangeIndex].max; token++)
+        float penalty;
+        if (penaltyFunctor(token, &penalty))
         {
-            float penalty;
-            if (penaltyFunctor(token, &penalty))
+            assert(penalty > std::numeric_limits<float>::epsilon());
+            const float logit = logits[token];
+            if (logit > 0.0)
             {
-                const float logit = logits[token];
-                if (logit > 0.0)
-                {
-                    logits[token] /= penalty;
-                }
-                else
-                {
-                    logits[token] *= penalty;
-                }
+                logits[token] /= penalty;
+            }
+            else
+            {
+                logits[token] *= penalty;
             }
         }
     }
 }
 
-void customPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, const void* data, bool (*penaltyFunctor)(const void* data, const int32_t token, float* outPenalty))
+void customPenaltyTransform(float* logits, RangeGroupHandle rangeGroup, const void* data, bool (*penaltyFunctor)(const void* data, const int32_t token, float* outPenalty))
 {
-    customPenaltyTransformTemplated(logits, ranges, nbRanges, [data, penaltyFunctor](const int32_t token, float* outPenalty) -> bool
+    assert(rangeGroup != nullptr);
+    customPenaltyTransformTemplated(logits, *rangeGroup, [data, penaltyFunctor](const int32_t token, float* outPenalty) -> bool
     {
         return penaltyFunctor(data, token, outPenalty);
     });
 }
 
-void repetitionPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, float penalty, GenerationHistory* history, int32_t maxAge)
+void repetitionPenaltyTransform(float* logits, RangeGroupHandle rangeGroup, float penalty, GenerationHistory* history, int32_t maxAge)
 {
+    assert(rangeGroup != nullptr);
     auto penaltyFunctor = [penalty, maxAge, history](const int32_t token, float* outPenalty) -> bool
     {
         if (!history->hadDecodedTokenRecently(token, 250))
@@ -286,22 +280,24 @@ void repetitionPenaltyTransform(float* logits, const Range* ranges, size_t nbRan
         return true;
     };
 
-    customPenaltyTransformTemplated(logits, ranges, nbRanges, penaltyFunctor);
+    customPenaltyTransformTemplated(logits, *rangeGroup, penaltyFunctor);
 }
 
-void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, GenerationHistory* history, const SpecialPenaltyTransformArgs* args)
+void specialPenaltyTransform(float* logits, RangeGroupHandle rangeGroup, GenerationHistory* history, const SpecialPenaltyTransformArgs* args)
 {
     assert(args != nullptr);
-    specialPenaltyTransform(logits, ranges, nbRanges, history, *args);
+    assert(rangeGroup != nullptr);
+    assert(history != nullptr);
+    specialPenaltyTransform(logits, *rangeGroup, *history, *args);
 }
 
-void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, GenerationHistory* history, const SpecialPenaltyTransformArgs& args)
+void specialPenaltyTransform(float* logits, const RangeGroup& rangeGroup, GenerationHistory& history, const SpecialPenaltyTransformArgs& args)
 {
-    auto penaltyFunctor = [history, &args](const int32_t token, float* outPenalty) -> bool
+    auto penaltyFunctor = [&history, &args](const int32_t token, float* outPenalty) -> bool
     {
         *outPenalty = 1.0;
 
-        const MidiTokenizer& tokenizer = history->getTokenizer();
+        const MidiTokenizer& tokenizer = history.getTokenizer();
         const int32_t* decodedTokensBegin;
         const int32_t* decodedTokensEnd;
         tokenizer.decodeTokenFast(token, decodedTokensBegin, decodedTokensEnd);
@@ -310,7 +306,7 @@ void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges
         {
             const int32_t decodedToken = *it;
             int32_t age;
-            if (tokenizer.isPitchFast(decodedToken) && history->getDecodedTokensHistory().findMostRecentAge(token, age))
+            if (tokenizer.isPitchFast(decodedToken) && history.getDecodedTokensHistory().findMostRecentAge(token, age))
             {
                 *outPenalty += args.pitchMaxAdditivePenalty * (1.f - float(age) / args.pitchWindowSize);
             }
@@ -319,11 +315,12 @@ void specialPenaltyTransform(float* logits, const Range* ranges, size_t nbRanges
         return true;
     };
 
-    customPenaltyTransformTemplated(logits, ranges, nbRanges, penaltyFunctor);
+    customPenaltyTransformTemplated(logits, rangeGroup, penaltyFunctor);
 }
 
-void musicalScalePenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, const int32_t* pitches, int32_t nbPitches, float penaltyPerOutOfScalePitch, MidiTokenizerHandle tokenizer)
+void musicalScalePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, const int32_t* pitches, int32_t nbPitches, float penaltyPerOutOfScalePitch, MidiTokenizerHandle tokenizer)
 {
+    assert(rangeGroup != nullptr && tokenizer != nullptr);
     constexpr int32_t nbPitchesPerOctave = 12;
     assert(nbPitches > 0 && nbPitches <= nbPitchesPerOctave);
     assert((pitches + nbPitches) == std::find_if(pitches, pitches+nbPitches, [nbPitchesPerOctave](int32_t pitch) 
@@ -355,11 +352,12 @@ void musicalScalePenaltyTransform(float* logits, const Range* ranges, size_t nbR
         return true;
     };
 
-    customPenaltyTransformTemplated(logits, ranges, nbRanges, penaltyFunctor);
+    customPenaltyTransformTemplated(logits, *rangeGroup, penaltyFunctor);
 }
 
-void pitchRangePenaltyTransform(float* logits, const Range* ranges, size_t nbRanges, const int32_t minPitch, const int32_t maxPitch, float penaltyPerOutOfRangePitch, MidiTokenizerHandle tokenizer)
+void pitchRangePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, const int32_t minPitch, const int32_t maxPitch, float penaltyPerOutOfRangePitch, MidiTokenizerHandle tokenizer)
 {
+    assert(rangeGroup != nullptr && tokenizer != nullptr);
     auto penaltyFunctor = [tokenizer, minPitch, maxPitch, penaltyPerOutOfRangePitch](const int32_t token, float* outPenalty) -> bool
     {
         *outPenalty = 1.0;
@@ -384,8 +382,38 @@ void pitchRangePenaltyTransform(float* logits, const Range* ranges, size_t nbRan
         return true;
     };
 
-    customPenaltyTransformTemplated(logits, ranges, nbRanges, penaltyFunctor);
+    customPenaltyTransformTemplated(logits, *rangeGroup, penaltyFunctor);
 }
+
+// void timeShiftRangePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, const int32_t minTimeShift, const int32_t maxTimeShift, float penaltyPerOutOfRangeTimeShift, MidiTokenizerHandle tokenizer)
+// {
+//     assert(rangeGroup != nullptr && tokenizer != nullptr);
+//     auto penaltyFunctor = [tokenizer, minTimeShift, maxTimeShift, penaltyPerOutOfRangeTimeShift](const int32_t token, float* outPenalty) -> bool
+//     {
+//         *outPenalty = 1.0;
+
+//         const int32_t* decodedTokensBegin;
+//         const int32_t* decodedTokensEnd;
+//         tokenizer->decodeTokenFast(token, decodedTokensBegin, decodedTokensEnd);
+
+//         for (const int32_t* it = decodedTokensBegin; it != decodedTokensEnd; ++it)
+//         {
+//             const int32_t decodedToken = *it;
+//             if (tokenizer->isTimeShift(decodedToken))
+//             {
+//                 // const int32_t pitch = tokenizer->getTimeShiftValue(decodedToken);
+//                 // if (pitch < minTimeShift || pitch > maxTimeShift)
+//                 // {
+//                 //     *outPenalty += penaltyPerOutOfRangeTimeShift;
+//                 // }
+//             }
+//         }
+
+//         return true;
+//     };
+
+//     customPenaltyTransformTemplated(logits, *rangeGroup, penaltyFunctor);
+// }
 
 constexpr int32_t ionianCMajor[] = {60%12, 62%12, 64%12, 65%12, 67%12, 69%12, 71%12, 72%12};
 constexpr int32_t aeolianCNatural[] = {60%12, 62%12, 63%12, 65%12, 67%12, 68%12, 70%12, 72%12};

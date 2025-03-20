@@ -90,7 +90,7 @@ void RangeGroup::addRange(Range newRange)
     newRange.min = std::min(newRange.min, ranges[startIndex].min);
     newRange.max = std::max(newRange.max, ranges[endIndex-1].max);
 
-    for (size_t i = startIndex + 1; i < endIndex; i++)
+    for (size_t i = startIndex; i < endIndex; i++)
     {
         totalSize -= rangeSize(&ranges[i]);
     }

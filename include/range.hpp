@@ -68,8 +68,8 @@ public:
 
     inline std::size_t size() const
     {
-        // return totalSize;
-        return computeSize();
+        return totalSize;
+        // return computeSize();
     }
 
     std::size_t computeSize() const;

@@ -68,8 +68,11 @@ public:
 
     inline std::size_t size() const
     {
-        return totalSize;
+        // return totalSize;
+        return computeSize();
     }
+
+    std::size_t computeSize() const;
 
     // write all ints in that RangeGroup inside an array
     // size of the array must be size()

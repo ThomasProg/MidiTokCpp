@@ -115,14 +115,24 @@ void RangeGroup::write(int32_t* writeBuffer) const
     }
 }
 
+std::size_t RangeGroup::computeSize() const
+{
+    std::size_t totalSize = 0;
+    for (const Range& range : ranges)
+    {
+        totalSize += rangeSize(&range);
+    }
+    return totalSize;
+}
+
 bool isColliding(const Range* a, const Range* b)
 {
     return (a->min < b->max && a->max > b->min);
 }
 
-bool rangeSize(const Range* a)
+uint32_t rangeSize(const Range* a)
 {
-    return a->max - a->min + 1;
+    return uint32_t(a->max - a->min + 1);
 }
 
 uint64_t rangeGroupSize(const RangeGroupHandle rangeGroup)

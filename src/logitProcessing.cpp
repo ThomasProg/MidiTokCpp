@@ -243,7 +243,6 @@ inline void customPenaltyTransformTemplated(float* logits, const RangeGroup& ran
         float penalty;
         if (penaltyFunctor(token, &penalty))
         {
-            assert(penalty > std::numeric_limits<float>::epsilon());
             const float logit = logits[token];
             if (logit > 0.0)
             {

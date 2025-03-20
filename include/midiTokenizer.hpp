@@ -438,8 +438,8 @@ public:
 
     bool isPitchFast(std::int32_t token) const
     {
-        return decodedTokenToPitch[token] != 0;
-        // return decodedTokenToType[token] == TokenType::PITCH;
+        // return decodedTokenToPitch[token] != 0;
+        return decodedTokenToType[token] == TokenType::PITCH;
     }
 
     std::int32_t getPitchValue(std::int32_t token) const
@@ -450,8 +450,8 @@ public:
 
     std::uint8_t getPitchValueFast(std::int32_t token) const
     {
-        return decodedTokenToPitch[token];
-        // return decodedTokenToPitch[decodedTokenToCacheIndex[token]];
+        // return decodedTokenToPitch[token];
+        return decodedTokenToPitch[decodedTokenToCacheIndex[token]];
     }
 
     bool isDuration(std::int32_t token) const

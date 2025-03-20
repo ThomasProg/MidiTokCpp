@@ -399,9 +399,9 @@ void timeShiftRangePenaltyTransform(float* logits, RangeGroupHandle rangeGroup, 
         for (const int32_t* it = decodedTokensBegin; it != decodedTokensEnd; ++it)
         {
             const int32_t decodedToken = *it;
-            if (tokenizer->isTimeShift(decodedToken))
+            if (tokenizer->isTimeShiftFast(decodedToken))
             {
-                const float timeShift = tokenizer->getTimeShiftValuef(decodedToken);
+                const float timeShift = tokenizer->getTimeShiftValuefFast(decodedToken);
                 if (timeShift < (minTimeShift+std::numeric_limits<float>::epsilon()) || (timeShift > maxTimeShift-std::numeric_limits<float>::epsilon()))
                 {
                     *outPenalty += penaltyPerOutOfRangeTimeShift;

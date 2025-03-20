@@ -23,6 +23,20 @@ class RangeGroup
     bool isDirty = false;
 
 public:
+    RangeGroup() = default;
+    RangeGroup(const RangeGroup& rhs) : ranges(rhs.ranges), totalSize(rhs.totalSize), isDirty(true) {}
+    RangeGroup(RangeGroup&& rhs) = default;
+
+    RangeGroup& operator=(const RangeGroup& rhs) = delete;
+
+    // RangeGroup& operator=(const RangeGroup& rhs)
+    // {
+    //     ranges = rhs.ranges;
+    //     totalSize = rhs.totalSize; 
+    // }
+    RangeGroup& operator=(RangeGroup&& rhs) = default;
+    ~RangeGroup() = default;
+
     // Uses dichotomy search
     // Returns an index
     std::size_t findLastRangeBeforeX(std::int32_t x, std::size_t beginIndex, std::size_t endIndex) const;

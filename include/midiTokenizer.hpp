@@ -64,7 +64,19 @@ protected:
     std::vector<int32_t> decodedTokens;
     std::vector<std::int32_t> encodedTokenToDecodedTokensBeginIndex;
 
+    // to save memory
+    std::vector<uint16_t> decodedTokenToCacheIndex;
+    
+    enum class TokenType : uint8_t
+    {
+        UNSET = 0,
+        PITCH, 
+        TIME_SHIFT,
+    };
+    std::vector<TokenType> decodedTokenToType;
+
     std::vector<uint8_t> decodedTokenToPitch;
+    std::vector<float> decodedTokenToTimeShift;
 
 public:
 
@@ -190,6 +202,7 @@ public:
 
         __createDecodingCache();
         __createDecodedToPitchCache();
+        __createDecodedToTimeShiftCache();
     }
 
     void __createDecodingCache()
@@ -217,17 +230,51 @@ public:
         encodedTokenToDecodedTokensBeginIndex.back() = int32_t(decodedTokens.size());
     }
 
-    void __createDecodedToPitchCache()
+    template<typename PREDICATE, typename GETTER, typename ELEM>
+    void __createDecodedToCacheTemplate(std::vector<ELEM>& arr, TokenType tokenType, PREDICATE&& isX, GETTER&& getX)
     {
         int32_t nbDecodedTokens = getNbDecodedTokens();
-        decodedTokenToPitch.resize(nbDecodedTokens);
+        decodedTokenToCacheIndex.resize(nbDecodedTokens);
+        decodedTokenToType.resize(nbDecodedTokens);
+        arr.reserve(nbDecodedTokens);
         for (int32_t decodedToken = 0; decodedToken < nbDecodedTokens; ++decodedToken)
         {
-            if (isPitch(decodedToken))
+            if (isX(decodedToken))
             {
-                decodedTokenToPitch[decodedToken] = int8_t(getPitchValue(decodedToken));
+                decodedTokenToType[decodedToken] = tokenType;
+                decodedTokenToCacheIndex[decodedToken] = std::uint16_t(arr.size());
+                arr.push_back(getX(decodedToken));
             }
         }
+        arr.shrink_to_fit();
+    }
+
+    void __createDecodedToPitchCache()
+    {
+        __createDecodedToCacheTemplate(
+            decodedTokenToPitch, TokenType::PITCH,
+            [this](int32_t decodedToken){return isPitch(decodedToken);}, 
+            [this](int32_t decodedToken){return uint8_t(getPitchValue(decodedToken));}
+        );
+
+        // int32_t nbDecodedTokens = getNbDecodedTokens();
+        // decodedTokenToPitch.resize(nbDecodedTokens);
+        // for (int32_t decodedToken = 0; decodedToken < nbDecodedTokens; ++decodedToken)
+        // {
+        //     if (isPitch(decodedToken))
+        //     {
+        //         decodedTokenToPitch[decodedToken] = int8_t(getPitchValue(decodedToken));
+        //     }
+        // }
+    }
+
+    void __createDecodedToTimeShiftCache()
+    {
+        __createDecodedToCacheTemplate(
+            decodedTokenToTimeShift, TokenType::TIME_SHIFT,
+            [this](int32_t decodedToken){return isTimeShift(decodedToken);}, 
+            [this](int32_t decodedToken){return getTimeShiftValuef(decodedToken);}
+        );
     }
 
     int max_num_pos_per_beat() const
@@ -351,6 +398,11 @@ public:
         return startBy(str.c_str(), "TimeShift_");
     }
 
+    bool isTimeShiftFast(std::int32_t token) const
+    {
+        return decodedTokenToType[token] == TokenType::TIME_SHIFT;
+    }
+
     std::string getTimeShiftValue(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
@@ -360,11 +412,17 @@ public:
     void getTimeShiftValuei(std::int32_t token, int& nbBeats, int& nbSamples, int& resolution) const;
     float getTimeShiftValuef(std::int32_t token) const;
 
+    float getTimeShiftValuefFast(std::int32_t token) const
+    {
+        return decodedTokenToTimeShift[decodedTokenToCacheIndex[token]];
+    }
+
+
     bool isPosition(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "Position_");
-    }
+    } 
 
     std::int32_t getPositionValue(std::int32_t token) const
     {
@@ -381,6 +439,7 @@ public:
     bool isPitchFast(std::int32_t token) const
     {
         return decodedTokenToPitch[token] != 0;
+        // return decodedTokenToType[token] == TokenType::PITCH;
     }
 
     std::int32_t getPitchValue(std::int32_t token) const
@@ -392,6 +451,7 @@ public:
     std::uint8_t getPitchValueFast(std::int32_t token) const
     {
         return decodedTokenToPitch[token];
+        // return decodedTokenToPitch[decodedTokenToCacheIndex[token]];
     }
 
     bool isDuration(std::int32_t token) const

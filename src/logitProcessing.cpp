@@ -424,7 +424,7 @@ constexpr std::array<T, N>& modArray(std::array<int, 8> arr, int32_t modValue)
 {
     for (std::size_t i = 0; i < arr.size(); ++i) 
     {
-        arr[i] = i % modValue;
+        arr[i] %= modValue;
     }
     return arr;
 }

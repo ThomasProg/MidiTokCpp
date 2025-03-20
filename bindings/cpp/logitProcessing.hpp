@@ -13,8 +13,8 @@ namespace Scales
     {
         namespace CMajor
         {
-            API_EXPORT constexpr const int32_t* get();
-            API_EXPORT constexpr int32_t size();
+            API_EXPORT const int32_t* get();
+            API_EXPORT int32_t size();
         }
 
     }

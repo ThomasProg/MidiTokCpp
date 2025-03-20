@@ -431,18 +431,14 @@ constexpr std::array<T, N>& modArray(std::array<int, 8> arr, int32_t modValue)
 
 namespace Scales::Ionian::CMajor
 {
-constexpr std::array<int, 8> IonianCMajor() 
-{
-    constexpr std::array<int, 8> arr = {60, 62, 64, 65, 67, 69, 71, 72};
-    return modArray<int, 8>(arr, 12);
-}
+constexpr const int arr[] = {0,2,4,5,7,9,11};
 
-constexpr const int32_t* get()
+const int32_t* get()
 {
-    return IonianCMajor().data();
+    return &arr[0];
 }
-constexpr int32_t size()
+int32_t size()
 {
-    return int32_t(IonianCMajor().size());
+    return 7;
 }
 }

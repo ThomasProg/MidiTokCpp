@@ -1,6 +1,5 @@
 #include "logitProcessing.h"
 #include "logitProcessing.hpp"
-#include "note.h"
 #include <cmath>
 #include <algorithm>
 #include <vector>
@@ -10,6 +9,7 @@
 #include "midiTokenizer.hpp"
 #include "generationHistory.hpp"
 #include "range.hpp"
+#include "searchArgs.h"
 
 // numerically stable softmax ; reduces overflows, but costs slightly more
 // substract by max logit

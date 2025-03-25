@@ -2,7 +2,7 @@
 #include "modelLoadingParams.hpp"
 
 #include <sstream>
-#include "note.h"
+#include "searchArgs.h"
 
 // #define PRINT_TENSOR_UPDATE
 // #define PRINT_TENSOR_SHAPE
@@ -50,16 +50,6 @@ size_t Batch::size() const
 
 MusicGenerator::MusicGenerator(const ModelLoadingParams& loadingData)
 {
-    // modelInfo.n_ctx = loadingData["n_ctx"];
-    // modelInfo.n_embd = loadingData["n_embd"];
-    // modelInfo.n_head = loadingData["n_head"];
-    // modelInfo.n_layer = loadingData["n_layer"];
-    // modelInfo.n_positions = loadingData["n_positions"];
-    // modelInfo.vocab_size = loadingData["vocab_size"];
-
-    // modelInfo.model_type = MakeCStr(loadingData["model_type"].template get<std::string>().c_str()); // "gpt2"
-    // modelInfo.torch_dtype = MakeCStr(loadingData["torch_dtype"].template get<std::string>().c_str()); // "float32"
-
     modelInfo.ctx = loadingData.json["n_ctx"];
     modelInfo.hidden_size = loadingData.json["n_embd"];
     modelInfo.num_attention_heads = loadingData.json["n_head"];
@@ -109,79 +99,6 @@ CResult MusicGenerator::onPostOnnxLoad()
     // Retrieve initializers
     OrtAllocator *allocator;
     api->GetAllocatorWithDefaultOptions(&allocator);
-
-    // for (size_t i = 0; i < num_inputs; i++) {
-    //     char *name;
-    //     api->SessionGetInputName(*session, i, allocator, &name);
-    //     printf("Input name: %s\n", name);
-
-    //     // Inspect input dimensions (for vocab_size, etc.)
-    //     auto typeInfo = session->GetInputTypeInfo(i);
-    //     auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
-
-    //     for (auto i : shapeInfo.GetShape())
-    //     {
-    //         std::cout << i << " ";
-    //     }
-    //     std::cout << std::endl;
-
-    //     api->AllocatorFree(allocator, name);
-    // }
-
-
-
-    // std::cout << "ov" <<session->GetOverridableInitializerCount() << std::endl;
-
-    // for (int i = 0; i < session->GetOverridableInitializerCount(); i++)
-    // {
-    //     auto str = session->GetOverridableInitializerNameAllocated(i, allocator);
-    //     auto typeInfo = session->GetOverridableInitializerTypeInfo(i);
-    //     auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
-
-    //     for (auto i : shapeInfo.GetShape())
-    //     {
-    //         std::cout << i << "dfrgtftdrsertf";
-    //     }
-
-    //     std::cout << str << std::endl;
-
-    // }
-
-    // size_t num_outputs = session->GetOutputCount();
-    // printf("Number of outputs: %zu\n", num_outputs);
-    // for (size_t i = 0; i < num_outputs; i++) {
-    //     char *name;
-    //     api->SessionGetInputName(*session, i, allocator, &name);
-    //     printf("Input name: %s\n", name);
-
-    //     // Inspect input dimensions (for vocab_size, etc.)
-    //     auto typeInfo = session->GetInputTypeInfo(i);
-    //     auto shapeInfo = typeInfo.GetTensorTypeAndShapeInfo();
-
-    //     for (auto i : shapeInfo.GetShape())
-    //     {
-    //         std::cout << i << " ";
-    //     }
-    //     std::cout << std::endl;
-
-    //     api->AllocatorFree(allocator, name);
-    // }
-
-
-
-
-    // Load Config
-    // @TODO : load from config
-
-    // modelInfo.num_attention_heads = 8;
-    // modelInfo.hidden_size = 512;
-    // modelInfo.num_layer = 8;
-
-    // modelInfo.num_attention_heads = 4;
-    // modelInfo.hidden_size = 256;
-    // modelInfo.num_layer = 6;
-    // modelInfo.vocab_size = 500;
-    // modelInfo.nbMaxPositions = 512;
 
     // Input Labels
     modelInfo.inputIdLabel = "input_ids";
@@ -608,10 +525,6 @@ void MusicGenerator::getNextTokens_greedy(const SearchArgs& args)
 
 void MusicGenerator::processNextTokens(RunInstance& runInstance, Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens)
 {
-    // getNextTokens_greedy(logitsTensor, outNextTokens);
-
-
-
     Ort::TensorTypeAndShapeInfo tensorInfo = logitsTensor.GetTensorTypeAndShapeInfo();
     assert(tensorInfo.GetDimensionsCount() == 3);
     std::vector<int64_t> shape = tensorInfo.GetShape();
@@ -623,7 +536,6 @@ void MusicGenerator::processNextTokens(RunInstance& runInstance, Ort::Value& log
     args.vocabSize = static_cast<std::int32_t>(shape[2]);
 
     (*runInstance.searchStrategy)(args, runInstance.searchStrategyData);
-    // getNextTokens_greedy(args);
 }
 
 void RunInstance::copyAndShiftPresentIntoNextPast(const float* presentData, float* pastData, int64_t presentShape[], int64_t pastShape[])
@@ -922,6 +834,10 @@ AutoRegressiveBatchHandle MusicGeneratorPipeline::addBatch()
 
 void MusicGeneratorPipeline::removeAllBatches()
 {
+    for (Batch* batch : runInstance->batches)
+    {
+        delete batch;
+    }
     runInstance->batches.clear();
 }
 

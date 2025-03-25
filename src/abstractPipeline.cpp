@@ -26,3 +26,18 @@ CResult AOnnxModel::loadOnnxModel(const Ort::Env& env, const char* modelPath)
         return result;
     }
 }
+
+void AOnnxModel::generate(const Ort::IoBinding& ioBindings, CppResult& outResult)
+{
+    try 
+    {
+        session->Run(Ort::RunOptions{nullptr}, ioBindings);
+    }
+    catch(const Ort::Exception& e)
+    {
+        std::string errorMsg;
+        errorMsg += "Error occurred: " + std::string(e.what());
+        errorMsg += "Error code: " + std::to_string(e.GetOrtErrorCode());
+        outResult = CppResult(errorMsg.c_str());
+    }
+}

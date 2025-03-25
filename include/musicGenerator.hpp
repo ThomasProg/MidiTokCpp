@@ -200,10 +200,8 @@ public:
     MusicGenerator(const ModelLoadingParams& jsonData);
 
     static std::unique_ptr<Ort::Env> createOnnxEnv(bool useLogging = false);
-    // void loadOnnxModel(const Ort::Env& env, const std::string& modelPath);
     virtual CResult onPostOnnxLoad() override;
-
-    // static void getNextTokens_greedy(const Ort::Value& logitsTensor, std::vector<RunInstance::DataType>& outNextTokens);
+    
     static void getNextTokens_greedyFiltered(const struct SearchArgs& args, bool (*filter)(std::int32_t token, void* data), void* data);
     static void getNextTokens_greedyPreFiltered(const struct SearchArgs& args, std::int32_t* availableTokens, std::int32_t nbAvailableToken);
     static void getNextTokens_greedy(const struct SearchArgs& args);
@@ -224,7 +222,7 @@ public:
     void printInputsInfo();
 
     // BEGIN - AModel
-    virtual IAutoRegressivePipeline* createPipeline();
+    virtual IAutoRegressivePipeline* createPipeline() override;
     // END - AModel
 };
 

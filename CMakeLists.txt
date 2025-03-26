@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.11)
 
 # 4 targets:
 # - MidiTokCpp : a dynamic library
@@ -14,8 +14,6 @@ project(MidiTokCpp)
 # Set the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-
-
 
 include(CheckCXXCompilerFlag)
 if(NOT MSVC)
@@ -196,3 +194,5 @@ add_custom_command(TARGET MidiTokCppTestC POST_BUILD
     "${CMAKE_CURRENT_LIST_DIR}/${ONNXRUNTIME_ROOTDIR}/runtimes/win-x64/native/onnxruntime.dll" $<TARGET_FILE_DIR:MidiTokCppTestC>
 )
 
+enable_testing()
+add_subdirectory(tests)

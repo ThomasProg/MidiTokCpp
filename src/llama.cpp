@@ -1,6 +1,9 @@
 #include "llama.hpp"
 #include "modelLoadingParams.hpp"
 #include "searchArgs.h"
+#include "llama.h"
+
+#include <iostream>
 
 namespace Llama
 {
@@ -26,11 +29,11 @@ size_t Batch::size() const
 
 LlamaModel::LlamaModel(const ModelLoadingParams& loadingData)
 {
-    modelInfo.ctx = loadingData.json["n_ctx"];
-    modelInfo.hidden_size = loadingData.json["n_embd"];
-    modelInfo.num_attention_heads = loadingData.json["n_head"];
-    modelInfo.num_layer = loadingData.json["n_layer"];
-    modelInfo.nbMaxPositions = loadingData.json["n_positions"];
+    modelInfo.ctx = loadingData.json["max_position_embeddings"];
+    modelInfo.hidden_size = loadingData.json["hidden_size"];
+    modelInfo.num_attention_heads = loadingData.json["num_attention_heads"];
+    modelInfo.num_layer = loadingData.json["num_hidden_layers"];
+    modelInfo.nbMaxPositions = loadingData.json["max_position_embeddings"];
     modelInfo.vocab_size = loadingData.json["vocab_size"];
 
     modelInfo.model_type = MakeCStr(loadingData.json["model_type"].template get<std::string>().c_str()); // "gpt2"
@@ -49,19 +52,21 @@ CResult LlamaModel::onPostOnnxLoad()
     modelInfo.attentionMaskLabel = "attention_mask";
     // modelInfo.positionIdLabel = "position_ids";
 
-    modelInfo.presentLabels.resize(modelInfo.num_layer);
+    modelInfo.presentLabels.resize(modelInfo.num_layer*2);
     for (std::int64_t i = 0; i < modelInfo.num_layer; i++)
     {
-        modelInfo.presentLabels[i] = std::string("present_") + std::to_string(i);
+        modelInfo.presentLabels[i] = std::string("present_key_") + std::to_string(i);
+        modelInfo.presentLabels[i+modelInfo.num_layer] = std::string("present_value_") + std::to_string(i);
     }
     
     // Output Labels
     modelInfo.logitsLabel = "logits";
 
-    modelInfo.pastLabels.resize(modelInfo.num_layer);
+    modelInfo.pastLabels.resize(modelInfo.num_layer * 2);
     for (std::int64_t i = 0; i < modelInfo.num_layer; i++)
     {
-        modelInfo.pastLabels[i] = std::string("past_") + std::to_string(i);
+        modelInfo.pastLabels[i] = std::string("past_key_") + std::to_string(i);
+        modelInfo.pastLabels[i+modelInfo.num_layer] = std::string("past_value_") + std::to_string(i);
     }
 
     return CResult();
@@ -75,22 +80,26 @@ LlamaPipeline::LlamaPipeline(LlamaModel* inModel) : model(inModel)
 {
     const OrtApi* api = OrtGetApiBase()->GetApi(ORT_API_VERSION);
     api->GetAllocatorWithDefaultOptions(&allocator);
+    ioBinding = Ort::IoBinding(*inModel->getSession());
+    maxInputLength = inModel->modelInfo.nbMaxPositions;
 }
 
 void LlamaPipeline::updateInputIdsTensor()
 {
-    DataType* data = inputIdsTensor.GetTensorMutableData<DataType>();
+    Batch::TensorDataType* data = inputIdsTensor.GetTensorMutableData<Batch::TensorDataType>();
     for (const std::unique_ptr<Batch>& batch : batches)
     {
         auto& inputIds = batch->inputIds; 
         assert(!batch->inputIds.empty());
-        std::copy(batch->inputIds.begin(), batch->inputIds.end(), data);
+        std::vector<Batch::TensorDataType> inputIdsExt(batch->inputIds.size());
+        std::copy(batch->inputIds.begin(), batch->inputIds.end(), inputIdsExt.data());
+        std::copy(inputIdsExt.begin(), inputIdsExt.end(), data);
         data += batch->inputIds.size();
     }
 }
 void LlamaPipeline::updateAttentionMaskTensor()
 {
-    DataType* data = attentionMaskTensor.GetTensorMutableData<DataType>();
+    Batch::TensorDataType* data = attentionMaskTensor.GetTensorMutableData<Batch::TensorDataType>();
     size_t i = 0;
     for (const std::unique_ptr<Batch>& batch : batches)
     {
@@ -98,6 +107,34 @@ void LlamaPipeline::updateAttentionMaskTensor()
         for (std::size_t j = 0; j < batch->attentionMask.size(); j++)
         {
             data[i] = batch->attentionMask[j];
+            i++;
+        }
+    }
+}
+
+void LlamaPipeline::updateAttentionMaskTensorCache(std::int64_t seqLength)
+{
+    Batch::TensorDataType* data = attentionMaskTensor.GetTensorMutableData<Batch::TensorDataType>();
+    size_t i = 0;
+    for (std::unique_ptr<Batch>& batch : batches)
+    {
+        for (std::int64_t j = 0; j < seqLength; j++)
+        {
+            data[i] = 1;
+            i++;
+        }
+    }
+}
+
+void LlamaPipeline::updateInputIdsTensorCache(const std::vector<DataType>& nextIds)
+{
+    Batch::TensorDataType* data = inputIdsTensor.GetTensorMutableData<Batch::TensorDataType>();
+    size_t i = 0;
+    for (std::unique_ptr<Batch>& batch : batches)
+    {
+        for (const DataType& id : nextIds)
+        {
+            data[i] = id;
             i++;
         }
     }
@@ -114,12 +151,12 @@ void LlamaPipeline::bindAttentionMask()
 void LlamaPipeline::bindPasts(CppResult& outResult)
 {
     const ModelInfo& modelInfo = model->modelInfo;
-    if (modelInfo.pastLabels.size() != modelInfo.num_layer || pastTensors.size() != modelInfo.num_layer)
+    if (modelInfo.pastLabels.size() != modelInfo.num_layer*2 || pastTensors.size() != modelInfo.num_layer*2)
     {
-        outResult = CppResult("(modelInfo.pastLabels.size() != modelInfo.num_layer || pastTensors.size() != modelInfo.num_layer); make sure the setup is correct");
+        outResult = CppResult("(modelInfo.pastLabels.size() != modelInfo.num_layer*2 || pastTensors.size() != modelInfo.num_layer*2); make sure the setup is correct");
     }
 
-    for (std::int32_t i = 0; i < modelInfo.num_layer; i++)
+    for (std::int32_t i = 0; i < modelInfo.num_layer*2; i++)
     {
         if (i < pastTensors.size())
         ioBinding.BindInput(modelInfo.pastLabels[i].c_str(), pastTensors[i]);
@@ -129,12 +166,12 @@ void LlamaPipeline::bindPasts(CppResult& outResult)
 void LlamaPipeline::bindPresents(CppResult& outResult)
 {
     const ModelInfo& modelInfo = model->modelInfo;
-    if (modelInfo.presentLabels.size() < size_t(modelInfo.num_layer) || presentTensors.size() != size_t(modelInfo.num_layer))
+    if (modelInfo.presentLabels.size() < size_t(modelInfo.num_layer*2) || presentTensors.size() != size_t(modelInfo.num_layer*2))
     {
-        outResult = CppResult("(modelInfo.presentLabels.size() < modelInfo.num_layer || presentTensors.size() != modelInfo.num_layer); make sure the setup is correct");
+        outResult = CppResult("(modelInfo.presentLabels.size() < modelInfo.num_layer*2 || presentTensors.size() != modelInfo.num_layer*2); make sure the setup is correct");
     }
 
-    for (std::int32_t i = 0; i < modelInfo.num_layer; i++)
+    for (std::int32_t i = 0; i < modelInfo.num_layer*2; i++)
     {
         ioBinding.BindOutput(modelInfo.presentLabels[i].c_str(), presentTensors[i]);
     }
@@ -144,15 +181,54 @@ void LlamaPipeline::bindLogits()
     ioBinding.BindOutput(model->modelInfo.logitsLabel.c_str(), logitsTensor);
 }
 
-void LlamaPipeline::getPastTensorShape(std::array<std::int64_t, 5>& outPastShape) const
+void LlamaPipeline::createInputTensor(Ort::Value* tensor) 
 {
-    const ModelInfo& modelInfo = model->modelInfo;
-    outPastShape = {2, getNbBatches(), modelInfo.num_attention_heads, maxInputLength-1, modelInfo.hidden_size / modelInfo.num_attention_heads};
+    assert(tensor != nullptr);
+    const std::array<std::int64_t, 2> inputShape = {std::int64_t(getNbBatches()), static_cast<std::int64_t>(getInputLength())};
+    *tensor = Ort::Value::CreateTensor<Batch::TensorDataType>(getAllocator(), inputShape.data(), inputShape.size());
 }
-void LlamaPipeline::getPresentTensorShape(std::array<std::int64_t, 5>& outPresentShape) const
+
+void LlamaPipeline::createPresentTensors(int64_t presentLength)
+{
+    int32_t nbAttentionHeads = getNbAttentionHeads();
+    int32_t nbLayers = getNbLayers();
+    const std::array<std::int64_t, 4> presentShape = {std::int64_t(getNbBatches()), nbAttentionHeads, presentLength, getHiddenSize() / nbAttentionHeads};
+
+    std::vector<Ort::Value>* presentTensors = getPresentTensors();
+    assert(presentTensors != nullptr);
+    presentTensors->clear();
+    presentTensors->reserve(nbLayers*2);
+    for (std::int32_t i = 0; i < nbLayers*2; i++)
+    {
+        presentTensors->push_back(Ort::Value::CreateTensor<float>(getAllocator(), presentShape.data(), presentShape.size()));
+    }
+}
+
+void LlamaPipeline::createPastTensors(int64_t pastLength)
+{
+    int32_t nbAttentionHeads = getNbAttentionHeads();
+    int32_t nbLayers = getNbLayers();
+    const std::array<std::int64_t, 4> pastShape = {std::int64_t(getNbBatches()), nbAttentionHeads, pastLength, getHiddenSize() / nbAttentionHeads};
+
+    std::vector<Ort::Value>* pastTensors = getPastTensors();
+    assert(pastTensors != nullptr);
+    pastTensors->clear();
+    pastTensors->reserve(nbLayers*2);
+    for (std::int32_t i = 0; i < nbLayers*2; i++)
+    {
+        pastTensors->push_back(Ort::Value::CreateTensor<float>(getAllocator(), pastShape.data(), pastShape.size()));
+    }
+}
+
+void LlamaPipeline::getPastTensorShape(std::array<std::int64_t, 4>& outPastShape) const
 {
     const ModelInfo& modelInfo = model->modelInfo;
-    outPresentShape = {2, getNbBatches(), modelInfo.num_attention_heads, seqLength, modelInfo.hidden_size / modelInfo.num_attention_heads};
+    outPastShape = {getNbBatches(), modelInfo.num_attention_heads, maxInputLength-1, modelInfo.hidden_size / modelInfo.num_attention_heads};
+}
+void LlamaPipeline::getPresentTensorShape(std::array<std::int64_t, 4>& outPresentShape) const
+{
+    const ModelInfo& modelInfo = model->modelInfo;
+    outPresentShape = {getNbBatches(), modelInfo.num_attention_heads, seqLength, modelInfo.hidden_size / modelInfo.num_attention_heads};
 }
 
 void LlamaPipeline::preGenerate(CppResult& outResult)
@@ -166,8 +242,55 @@ void LlamaPipeline::preGenerate(CppResult& outResult)
         IIOHandler::createFirstTimeTensors(outResult);
     }
 }
+
+template<typename T>
+void PrintTensorContent(const Ort::Value& value) {
+    // Get the tensor's shape
+    auto shape = value.GetTensorTypeAndShapeInfo().GetShape();
+    
+    // Get the number of elements in the tensor
+    size_t num_elements = 1;
+    for (size_t dim : shape) {
+        num_elements *= dim;
+    }
+
+    // Get the tensor's data (assuming it's of type float)
+    const T* tensor_data = value.GetTensorData<T>();
+
+    // Print the shape
+    std::cout << "Tensor shape: [";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        std::cout << shape[i];
+        if (i < shape.size() - 1) {
+            std::cout << ", ";
+        }
+    }
+    std::cout << "]\n";
+
+    // Print the tensor data
+    std::cout << "Tensor data: ";
+    for (size_t i = 0; i < num_elements; ++i) {
+        std::cout << tensor_data[i] << " ";
+        if ((i + 1) % 10 == 0) {  // Print 10 elements per line for better readability
+            std::cout << "\n";
+        }
+    }
+    std::cout << "\n";
+}
+
+void LlamaPipeline::createInputIdsTensorCache()
+{
+    std::array<std::int64_t, 2> inputShape = {std::int64_t(getNbBatches()), 1};
+    inputIdsTensor = Ort::Value::CreateTensor<Batch::TensorDataType>(allocator, inputShape.data(), inputShape.size());
+}
+void LlamaPipeline::createPositionIdsTensorCache()
+{
+
+}
+
 void LlamaPipeline::generate(CppResult& outResult)
 {
+    // PrintTensorContent<int64_t>(inputIdsTensor);
     model->generate(ioBinding, outResult);
 }
 void LlamaPipeline::postGenerate(CppResult& outResult)
@@ -190,10 +313,10 @@ void LlamaPipeline::postGenerate(CppResult& outResult)
     // Create IoBinding optimized inputs
     if (subsequentGenerationIndex == 0)
     {
-        createInputIdsTensor();
-        createPositionIdsTensor();
+        createInputIdsTensorCache();
+        createPositionIdsTensorCache();
         createAttentionMaskTensor();
-        updateAttentionMaskTensor();
+        updateAttentionMaskTensorCache(1);
 
         createLogitsTensor();
 
@@ -208,7 +331,7 @@ void LlamaPipeline::postGenerate(CppResult& outResult)
         seqLength += 1;
 
         pastTensors = std::move(presentTensors);
-        createPresentTensors(getInputLength());
+        createPresentTensors(seqLength+1);
 
         bindPasts(outResult);
         bindPresents(outResult);
@@ -230,11 +353,14 @@ void LlamaPipeline::postGenerate(CppResult& outResult)
         // remove the oldest "dim" of pastTensors when reaching 512 to prevent overloading  
         // Copy previous "past" values
 
-        std::array<std::int64_t, 5> pastShape;
+        std::array<std::int64_t, 4> pastShape;
         getPastTensorShape(pastShape);
+        std::array<std::int64_t, 5> pastShapeIncr = {1, pastShape[0], pastShape[1], pastShape[2], pastShape[3]};
 
-        std::array<std::int64_t, 5> presentShape;
+        std::array<std::int64_t, 4> presentShape;
         getPresentTensorShape(presentShape);
+        std::array<std::int64_t, 5> presentShapeIncr = {1, presentShape[0], presentShape[1], presentShape[2], presentShape[3]};
+
 
         for (size_t i = 0; i < presentTensors.size(); i++)
         {
@@ -242,30 +368,30 @@ void LlamaPipeline::postGenerate(CppResult& outResult)
             float* pastData = pastTensors[i].GetTensorMutableData<float>();
 
             // Ensure sizes are correct
-            #ifndef NDEBUG
-            auto tensor_info2 = presentTensors[i].GetTensorTypeAndShapeInfo();
-            std::vector<int64_t> presentShape2 = tensor_info2.GetShape();
+            // #ifndef NDEBUG
+            // auto tensor_info2 = presentTensors[i].GetTensorTypeAndShapeInfo();
+            // std::vector<int64_t> presentShape2 = tensor_info2.GetShape();
 
-            auto tensor_info = pastTensors[i].GetTensorTypeAndShapeInfo();
-            std::vector<int64_t> pastShape2 = tensor_info.GetShape();
+            // auto tensor_info = pastTensors[i].GetTensorTypeAndShapeInfo();
+            // std::vector<int64_t> pastShape2 = tensor_info.GetShape();
 
-            for (size_t i = 0; i < presentShape2.size(); i++)
-            {
-                assert(presentShape[i] == presentShape2[i]);
-            }
+            // for (size_t i = 0; i < presentShape2.size(); i++)
+            // {
+            //     assert(presentShape[i] == presentShape2[i]);
+            // }
 
-            for (size_t i = 0; i < pastShape2.size(); i++)
-            {
-                assert(pastShape[i] == pastShape2[i]);
-            }
+            // for (size_t i = 0; i < pastShape2.size(); i++)
+            // {
+            //     assert(pastShape[i] == pastShape2[i]);
+            // }
 
-            #endif
+            // #endif
             
-            IIOHandler::copyAndShiftPresentIntoNextPast(presentData, pastData, presentShape.data(), pastShape.data());
+            IIOHandler::copyAndShiftPresentIntoNextPast(presentData, pastData, presentShapeIncr.data(), pastShapeIncr.data());
         }
     }
 
-    updateInputIdsTensor();
+    updateInputIdsTensorCache(nextTokens);
     updatePositionIdsTensor();
 
     subsequentGenerationIndex += 1;
@@ -313,7 +439,7 @@ int32_t LlamaPipeline::batchGetLastGeneratedToken(AutoRegressiveBatchHandle batc
 {
     return batches[batch]->lastGeneratedToken;
 }
-void LlamaPipeline::batchSet(AutoRegressiveBatchHandle batch, DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos)
+void LlamaPipeline::batchSet(AutoRegressiveBatchHandle batch, Batch::DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos)
 {
     batches[batch]->set(inputTokens, nbTokens);
 }
@@ -345,9 +471,7 @@ LlamaModel* LlamaBuilder::loadModel(const ModelLoadingParams& loadingData) const
 }
 }
 
-inline auto _ = []() -> int
+void registerLlamaModelBuilder()
 {
-    getModelBuilderManager().registerModelBuilder("Llama", new Llama::LlamaBuilder());
-
-    return 0;
-}();
+    getModelBuilderManager().registerModelBuilder("llama", new Llama::LlamaBuilder());
+}

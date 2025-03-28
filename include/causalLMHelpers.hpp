@@ -15,8 +15,8 @@ public:
 
 class IIOHandler
 {
-private:
-    void createInputTensor(Ort::Value* tensor);
+protected:
+    virtual void createInputTensor(Ort::Value* tensor);
 
 public:
     virtual void bindInputs(CppResult& outResult);

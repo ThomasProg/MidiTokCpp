@@ -1,5 +1,6 @@
 #include "musicGenerator.hpp"
 #include "modelLoadingParams.hpp"
+#include "musicGenerator.h"
 
 #include <sstream>
 #include "searchArgs.h"
@@ -878,9 +879,7 @@ MusicGenerator* MusicGeneratorBuilder::loadModel(const ModelLoadingParams& jsonD
     return gen;
 }
 
-inline auto _ = []() -> int
+void registerGptModelBuilder()
 {
     getModelBuilderManager().registerModelBuilder("gpt2", new MusicGeneratorBuilder());
-
-    return 0;
-}();
+}

@@ -682,17 +682,17 @@ void MidiTokenizer::_preprocess_tokseq_before_decoding(TokSequence& seq) const
 
 void MidiTokenizer::complete_sequence(TokSequence& seq, bool complete_bytes) const
 {
-    if (seq.tokens.empty())
-    {
-        throw std::logic_error("Unimplemented");
+    // if (seq.tokens.empty())
+    // {
+    //     throw std::logic_error("Unimplemented");
 
-        // if len(seq.events) > 0:
-        //     seq.tokens = self._events_to_tokens(seq.events)
-        // elif len(seq.ids) > 0:
-        //     seq.tokens = self._ids_to_tokens(seq.ids)
-        // elif len(seq.bytes) > 0:
-        //     seq.tokens = self._bytes_to_tokens(seq.bytes)
-    }
+    //     // if len(seq.events) > 0:
+    //     //     seq.tokens = self._events_to_tokens(seq.events)
+    //     // elif len(seq.ids) > 0:
+    //     //     seq.tokens = self._ids_to_tokens(seq.ids)
+    //     // elif len(seq.bytes) > 0:
+    //     //     seq.tokens = self._bytes_to_tokens(seq.bytes)
+    // }
 
     if (seq.ids.empty())
     {

@@ -90,7 +90,7 @@ void IIOHandler::createFirstTimeTensors(CppResult& outResult)
         createInputIdsTensor();
         createPositionIdsTensor();
         createAttentionMaskTensor();
-        createPastTensors(seqLength);
+        createPastTensors(seqLength-1);
 
         updateInputIdsTensor();
         updatePositionIdsTensor();

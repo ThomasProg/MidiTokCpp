@@ -12,6 +12,7 @@ struct Batch
 {
 public:
     using DataType = std::int32_t;
+    using TensorDataType = std::int64_t;
 
     // Values
     std::vector<DataType> inputIds; // encoded tokens
@@ -140,14 +141,21 @@ private:
 
 public:
     // BEGIN - IIOHandler
-    void getPastTensorShape(std::array<std::int64_t, 5>& outPastShape) const;
-    void getPresentTensorShape(std::array<std::int64_t, 5>& outPresentShape) const;
+    virtual void createInputTensor(Ort::Value* tensor) override;
+    virtual void createPresentTensors(int64_t presentLength);
+    virtual void createPastTensors(int64_t pastLength) override;
+
+    void getPastTensorShape(std::array<std::int64_t, 4>& outPastShape) const;
+    void getPresentTensorShape(std::array<std::int64_t, 4>& outPresentShape) const;
 
     virtual void createPositionIdsTensor() override {}
     
     virtual void updateInputIdsTensor() override;
     virtual void updatePositionIdsTensor() override {}
     virtual void updateAttentionMaskTensor() override;
+
+    void updateAttentionMaskTensorCache(std::int64_t seqLength);
+    void updateInputIdsTensorCache(const std::vector<DataType>& nextIds);
 
     // Bind Inputs
     virtual void bindInputIds() override;
@@ -172,6 +180,9 @@ public:
     virtual std::vector<Ort::Value>* getPastTensors() { return &pastTensors; }
     virtual OrtAllocator* getAllocator() { return allocator; }
     // END - IIOHandler
+
+    void createInputIdsTensorCache();
+    void createPositionIdsTensorCache();
 };
 
 

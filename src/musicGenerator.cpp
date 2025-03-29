@@ -772,6 +772,11 @@ IAutoRegressivePipeline* MusicGenerator::createPipeline()
     return new MusicGeneratorPipeline(this, createRunInstance());
 }
 
+const char* MusicGenerator::getName() const
+{
+    return modelInfo.model_type.str;
+}
+
 MusicGeneratorPipeline::MusicGeneratorPipeline(MusicGeneratorHandle newMusicGenerator, RunInstanceHandle newRunInstance)
     : musicGenerator(newMusicGenerator),
     runInstance(newRunInstance)

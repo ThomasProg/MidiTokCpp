@@ -64,6 +64,7 @@ public:
 
     // BEGIN - AModel
     virtual IAutoRegressivePipeline* createPipeline() override;
+    const char* getName() const override;
     // END - AModel
 
     // BEGIN - AOnnxModel

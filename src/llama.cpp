@@ -45,6 +45,11 @@ IAutoRegressivePipeline* LlamaModel::createPipeline()
     return new LlamaPipeline(this);
 }
 
+const char* LlamaModel::getName() const
+{
+    return modelInfo.model_type.str;
+}
+
 CResult LlamaModel::onPostOnnxLoad()
 {
     // Input Labels

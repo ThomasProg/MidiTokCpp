@@ -223,6 +223,7 @@ public:
 
     // BEGIN - AModel
     virtual IAutoRegressivePipeline* createPipeline() override;
+    virtual const char* getName() const override;
     // END - AModel
 };
 

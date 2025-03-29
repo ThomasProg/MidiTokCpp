@@ -15,6 +15,7 @@ public:
     virtual ~AModel() = default;
 
     virtual IPipeline* createPipeline() = 0;
+    virtual const char* getName() const = 0;
 };
 
 class API_EXPORT AOnnxModel : public AModel

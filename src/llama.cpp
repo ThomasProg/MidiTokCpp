@@ -400,6 +400,12 @@ void LlamaPipeline::postGenerate(CppResult& outResult)
     updatePositionIdsTensor();
 
     subsequentGenerationIndex += 1;
+
+    if (history)
+    {
+        // @TODO : multiple batches support
+        history->addEncodedToken(nextTokens[0]);
+    }
 }
 LlamaModel* LlamaPipeline::getModel() const
 {

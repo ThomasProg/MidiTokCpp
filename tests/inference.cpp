@@ -7,14 +7,15 @@
 #include "logitProcessing.hpp"
 #include "range.hpp"
 #include "searchArgs.h"
+#include "generationHistory.hpp"
 
-void runInference(const char* folderPath, bool printLogs)
+void Inf::runInference(const char* folderPath, bool printLogs)
 {
     std::string folderPathStr = folderPath;
 
-    std::unique_ptr<MidiTokenizer> Tokenizer = std::make_unique<MidiTokenizer>(folderPathStr + "/tokenizer.json");
+    Tokenizer = std::make_unique<MidiTokenizer>(folderPathStr + "/tokenizer.json");
 
-	EnvHandle Env = createEnv(printLogs);
+	Env = createEnv(printLogs);
 
 	ModelLoadingParamsWrapper Params;
 	CResult r = createModelLoadingParamsWrapperFromFolder(folderPathStr.c_str(), &Params);
@@ -27,14 +28,14 @@ void runInference(const char* folderPath, bool printLogs)
 
 	AModel* Model = Builder->loadModelFromWrapper(Params);
 	IPipeline* Pipeline = Model->createPipeline();
-	IAutoRegressivePipeline* ARPipeline = (IAutoRegressivePipeline*)Pipeline; // @TODO : dynamic cast
+	ARPipeline = (IAutoRegressivePipeline*)Pipeline; // @TODO : dynamic cast
 
 
 
     std::vector<int32_t> EncodedTokens;
     EncodedTokens.push_back(0);
 
-    AutoRegressiveBatchHandle Batch2 = ARPipeline->addBatch();
+    Batch2 = ARPipeline->addBatch();
     ARPipeline->batchSet(Batch2, EncodedTokens.data(), int32_t(EncodedTokens.size()), 0);
 
     RangeGroup SearchedRangeGroup;
@@ -75,8 +76,6 @@ void runInference(const char* folderPath, bool printLogs)
     // ARPipeline->setMaxInputLength(1024);
 
     int32_t NbTokensSinceLastRefresh = 0;
-    int32_t LineNbMaxToken = 512;
-    int32_t NbTokensToGenerate = 300;
 
     while (NbTokensSinceLastRefresh < NbTokensToGenerate)
 	{
@@ -158,4 +157,15 @@ void runInference(const char* folderPath, bool printLogs)
 		EncodedTokens.push_back(newToken);
 		NbTokensSinceLastRefresh++;
 	}
+}
+
+void TokenHistoryTest::TestTokenHistory(const TokenHistory& tokenHistory)
+{
+	int nbTotalTokens = 0;
+	for (auto [key, value] : tokenHistory.tokensData)
+	{
+		nbTotalTokens += value.births.size();
+	}
+
+	EXPECT_EQ(tokenHistory.tokens.size(), nbTotalTokens);
 }

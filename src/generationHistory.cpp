@@ -166,6 +166,10 @@ TokenHistoryHandle getDecodedTokensHistory(const GenerationHistoryHandle genHist
     return &genHistory->getDecodedTokensHistory();
 }
 
+void generationHistory_removeAfterTick(const GenerationHistoryHandle genHistory, int32_t tick)
+{
+    genHistory->removeAfterTick(tick);
+}
 
 
 

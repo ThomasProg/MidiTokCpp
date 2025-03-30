@@ -18,6 +18,8 @@ extern "C"
     // const, must not be modified directly, must go through this class to be modified
     API_EXPORT TokenHistoryHandle getEncodedTokensHistory(const GenerationHistoryHandle genHistory);
     API_EXPORT TokenHistoryHandle getDecodedTokensHistory(const GenerationHistoryHandle genHistory);
+    
+    API_EXPORT void generationHistory_removeAfterTick(const GenerationHistoryHandle genHistory, int32_t tick);
 }
 
 extern "C" 

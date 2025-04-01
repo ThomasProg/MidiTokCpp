@@ -65,11 +65,13 @@ private:
 
     // Converters
     const MidiTokenizer& tokenizer;
-    MIDIConverter* converter;
+    MIDIConverter* converter = nullptr;
 
 public:
     GenerationHistory() = delete;
     GenerationHistory(const MidiTokenizer& inTokenizer) : tokenizer(inTokenizer) {}
+
+    const std::vector<Note>& getNotes() const;
 
     const MidiTokenizer& getTokenizer() const
     {

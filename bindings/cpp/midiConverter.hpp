@@ -9,7 +9,7 @@
 class API_EXPORT MIDIConverter
 {
 public:
-    MidiTokenizerHandle tokenizerHandle;
+    const MidiTokenizer* tokenizerHandle;
     RedirectorHandle redirector;
 
     void (*onNote)(void* data, const Note&);

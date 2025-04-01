@@ -3,6 +3,7 @@
 #include <cassert>
 #include "midiTokenizer.hpp"
 #include "midiConverter.hpp"
+#include "midiConverter.h"
 
 void TokenHistory::addToken(int32_t newDecodedToken)
 {
@@ -20,6 +21,7 @@ bool TokenHistory::findMostRecentAge(int32_t token, int32_t& outAge) const
         return false;
     }
 
+    assert(!findIt->second.births.empty());
     outAge = findMostRecentAge(findIt->second); 
     return true;
 }
@@ -40,10 +42,20 @@ void TokenHistory::removeAfterIndex(int32_t index)
     for (auto rit = tokens.rbegin(); rit != tokens.rend() - index; rit++)
     {
         int32_t token = *rit;
-        tokensData[token].births.pop_back();
+        auto tokenDataIt = tokensData.find(token);
+        tokenDataIt->second.births.pop_back();
+        if (tokenDataIt->second.births.empty())
+        {
+            tokensData.erase(tokenDataIt);
+        }
     }
 
     tokens.erase(tokens.begin() + index, tokens.end());
+}
+
+const std::vector<Note>& GenerationHistory::getNotes() const
+{
+    return notes;
 }
 
 void GenerationHistory::addEncodedToken(int32_t newEncodedToken)
@@ -70,6 +82,12 @@ void GenerationHistory::addEncodedToken(int32_t newEncodedToken)
 
 void GenerationHistory::convert()
 {
+    // assert(converter != nullptr);
+    if (converter == nullptr)
+    {
+        converter = createConverterFromTokenizer(&tokenizer);
+    }
+
     converter->onNote = [](void* data, const Note& note)
     {
         GenerationHistory* history = (GenerationHistory*) data;
@@ -107,6 +125,13 @@ void GenerationHistory::convert()
 
 void GenerationHistory::removeAfterTick(int32_t tick)
 {
+    convert();
+
+    if (notes.empty())
+    {
+        return;
+    }
+
     // consider we want to remove an element towards the end;
     // dichotomy might be faster otherwise
     // but we consider the generation stops if there are enough tokens generated already
@@ -116,7 +141,11 @@ void GenerationHistory::removeAfterTick(int32_t tick)
     });
 
     // index of the next element, excluding the one for which the predicate is true
-    int32_t index = notes.rend() - rit;
+    size_t index = notes.rend() - rit;
+    if (index >= notes.size())
+    {
+        return;
+    }
     notes.erase(notes.begin() + index, notes.end());
     auto [decodedTokenIndexStart, decodedTokenIndexEnd] = noteIndexToDecodedTokenIndex[index];
 
@@ -127,17 +156,6 @@ void GenerationHistory::removeAfterTick(int32_t tick)
 
     encodedTokensHistory.removeAfterIndex(encodedTokenIndex);
     decodedTokensHistory.removeAfterIndex(decodedTokenIndexStart);
-
-    // while (!notes.empty())
-    // {
-    //     Note& note = notes.back();
-    //     if (note.tick >= tick)
-    //     {
-    //         notes.pop_back();
-    //         auto [decodedTokenIndexStart, decodedTokenIndexEnd] = noteIndexToDecodedTokenIndex.back();
-    //         noteIndexToDecodedTokenIndex.pop_back();
-    //     }
-    // }
 }
 
 
@@ -171,7 +189,18 @@ void generationHistory_removeAfterTick(const GenerationHistoryHandle genHistory,
     genHistory->removeAfterTick(tick);
 }
 
+void generationHistory_convert(const GenerationHistoryHandle genHistory)
+{
+    genHistory->convert();
+}
 
+void generationHistory_getNotes(const GenerationHistoryHandle genHistory, const struct Note** outNotes, size_t* outLength)
+{
+    const std::vector<Note>& notes = genHistory->getNotes();
+    *outNotes = notes.data();
+    *outLength = notes.size();
+}
+ 
 
 void addToken(TokenHistoryHandle tokenHistory, int32_t newToken)
 {

@@ -448,39 +448,6 @@ std::int32_t getPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
 
 
 
-MidiConverterHandle createMidiConverter()
-{
-    // return new REMIConverter();
-    return new TSDConverter();
-}
-MidiConverterHandle createREMIConverter()
-{
-    return new REMIConverter();
-}
-MidiConverterHandle createTSDConverter()
-{
-    return new TSDConverter();
-}
-
-void destroyMidiConverter(MidiConverterHandle converter)
-{
-    delete converter;
-}
-
-void converterSetOnNote(MidiConverterHandle converter, void (*onNote)(void* data, const Note&))
-{
-    converter->onNote = onNote;
-}
-bool converterProcessToken(MidiConverterHandle converter, const int32_t* tokens, int32_t nbTokens, std::int32_t* index, void* data)
-{
-    assert(index != nullptr);
-    return converter->processToken(tokens, nbTokens, *index, data);
-}
-
-void converterSetTokenizer(MidiConverterHandle converter, MidiTokenizerHandle tokenizer)
-{
-    converter->tokenizerHandle = tokenizer;
-}
 
 
 

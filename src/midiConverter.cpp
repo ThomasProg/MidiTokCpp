@@ -1,4 +1,5 @@
 #include "midiConverter.hpp"
+#include "midiConverter.h"
 #include "midiTokenizer.hpp"
 #include "redirector.hpp"
 
@@ -19,7 +20,7 @@ bool REMIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::i
     if (index >= nbTokens)
         return false;
 
-    MidiTokenizer& tokenizer = *tokenizerHandle;
+    const MidiTokenizer& tokenizer = *tokenizerHandle;
 
     int32_t token = tokens[index];
 
@@ -92,7 +93,7 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
     if (index >= nbTokens)
         return false;
 
-    MidiTokenizer& tok = *tokenizerHandle;
+    const MidiTokenizer& tok = *tokenizerHandle;
     int32_t token = tokens[index];
 
     // @TODO : do at set only (so if timesig event, doesn't reset)
@@ -101,14 +102,16 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
 
     if (tok.isTimeShift(token))
     {
-        currentTick += tok._tpb_tokens_to_ticks[ticks_per_beat][tok.getTimeShiftValue(token)];
+        // @TODO : remove at?
+        currentTick += tok._tpb_tokens_to_ticks.at(ticks_per_beat).at(tok.getTimeShiftValue(token));
         index++;
         return true;
     }
     else if (tok.isRest(token))
     {
         currentTick = std::max(previousNoteEnd, currentTick);
-        currentTick += tok._tpb_rests_to_ticks[ticks_per_beat][tok.getRestValue(token)];
+        // @TODO : remove at?
+        currentTick += tok._tpb_rests_to_ticks.at(ticks_per_beat).at(tok.getRestValue(token));
         index++;
         return true;
     }
@@ -191,4 +194,58 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
     }
 
     return false;
+}
+
+
+
+
+
+MidiConverterHandle createConverterFromTokenizer(const MidiTokenizer* tokenizer)
+{
+    MidiConverterHandle converter = nullptr;
+    std::string type = tokenizer->getTokenizationType();
+    if (type == "REMI")
+    {
+        converter = createREMIConverter();
+    }
+    else if (type == "TSD")
+    {
+        converter = createTSDConverter();
+    }
+
+    if (converter != nullptr)
+    {
+        converterSetTokenizer(converter, tokenizer);
+    }
+
+    return converter;
+}
+
+MidiConverterHandle createREMIConverter()
+{
+    return new REMIConverter();
+}
+MidiConverterHandle createTSDConverter()
+{
+    return new TSDConverter();
+}
+
+void destroyMidiConverter(MidiConverterHandle converter)
+{
+    delete converter;
+}
+
+void converterSetOnNote(MidiConverterHandle converter, void (*onNote)(void* data, const Note&))
+{
+    converter->onNote = onNote;
+}
+bool converterProcessToken(MidiConverterHandle converter, const int32_t* tokens, int32_t nbTokens, std::int32_t* index, void* data)
+{
+    assert(index != nullptr);
+    return converter->processToken(tokens, nbTokens, *index, data);
+}
+
+void converterSetTokenizer(MidiConverterHandle converter, const MidiTokenizer* tokenizer)
+{
+    converter->tokenizerHandle = tokenizer;
 }

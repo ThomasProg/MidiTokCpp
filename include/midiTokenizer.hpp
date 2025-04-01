@@ -472,7 +472,7 @@ public:
         return startBy(str.c_str(), "Velocity_");
     }
 
-    std::int32_t getVelocityValue(std::int32_t token)
+    std::int32_t getVelocityValue(std::int32_t token) const
     {
         const std::string& str = __vocab_base_inv.at(token);
         return getUniqueValueInt(str);

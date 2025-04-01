@@ -20,6 +20,8 @@ extern "C"
     API_EXPORT TokenHistoryHandle getDecodedTokensHistory(const GenerationHistoryHandle genHistory);
     
     API_EXPORT void generationHistory_removeAfterTick(const GenerationHistoryHandle genHistory, int32_t tick);
+    API_EXPORT void generationHistory_convert(const GenerationHistoryHandle genHistory);
+    API_EXPORT void generationHistory_getNotes(const GenerationHistoryHandle genHistory, const struct Note** outNotes, size_t* outLength);
 }
 
 extern "C" 

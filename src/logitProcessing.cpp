@@ -32,12 +32,14 @@ void stableSoftmaxRange(const SearchArgs& args, const RangeGroup& rangeGroup)
             currentLogit = std::exp(currentLogit - maxLogit);
             sum += currentLogit;
 
+            assert(!std::isnan(currentLogit));
             batchLogits[token] = currentLogit;
         }
 
         for (int32_t token : rangeGroup)
         {
             batchLogits[token] /= sum;
+            assert(!std::isnan(batchLogits[token]));
         }
     }
 }
@@ -99,8 +101,14 @@ void stableSoftmax(float* logits, int32_t* indicesBegin, int32_t* indicesEnd)
         float currentLogit = logits[token];
 
         currentLogit = std::exp(currentLogit - maxLogit);
+        if (std::isnan(currentLogit))
+        {
+            logits[token] = 0.01f;
+            continue;
+        }
         sum += currentLogit;
 
+        // assert(!std::isnan(currentLogit));
         logits[token] = currentLogit;
     }
 
@@ -110,6 +118,7 @@ void stableSoftmax(float* logits, int32_t* indicesBegin, int32_t* indicesEnd)
         {
             const int32_t token = *indicesIt;
             logits[token] /= sum;
+            assert(!std::isnan(logits[token]));
         }
     }
 }
@@ -252,6 +261,7 @@ inline void customPenaltyTransformTemplated(float* logits, const RangeGroup& ran
             {
                 logits[token] *= penalty;
             }
+            assert(!std::isnan(logits[token]));
         }
     }
 }

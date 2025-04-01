@@ -26,6 +26,7 @@ public:
 //     void pop();
 
     void set(const DataType* inTokens, int32_t inNbTokens);
+    void reset();
     size_t size() const;
 };
 
@@ -104,6 +105,7 @@ public:
     virtual void postGenerate(CppResult& outResult) override;
     virtual LlamaModel* getModel() const override;
     virtual void reset() override;
+    virtual void batchUnwind(AutoRegressiveBatchHandle batch, int32_t tick) override;
     // END - IPipeline
 
     // BEGIN - IAutoRegressivePipeline
@@ -117,7 +119,8 @@ public:
 
     // If the model has to be updated, for example RNN state being reset if resetting the batch
     virtual int32_t batchGetLastGeneratedToken(AutoRegressiveBatchHandle batch) override;
-    virtual void batchSet(AutoRegressiveBatchHandle batch, DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos) override;
+    virtual void batchSet(AutoRegressiveBatchHandle batch, const DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos) override;
+    virtual void batchReset(AutoRegressiveBatchHandle batch);
     virtual void setMaxInputLength(int32_t newMaxInputLength) override;
 
     virtual void createHistory(const MidiTokenizer& tokenizer) override

@@ -18,6 +18,13 @@ void Batch::set(const DataType* inTokens, int32_t inNbTokens)
     attentionMask.resize(inNbTokens, 1);
 }
 
+void Batch::reset()
+{
+    inputIds.clear();
+    attentionMask.clear();
+    lastGeneratedToken = 0;
+}
+
 size_t Batch::size() const
 {
     return inputIds.size();
@@ -96,7 +103,7 @@ void LlamaPipeline::updateInputIdsTensor()
     {
         auto& inputIds = batch->inputIds; 
         assert(!batch->inputIds.empty());
-        std::vector<Batch::TensorDataType> inputIdsExt(batch->inputIds.size());
+        std::vector<Batch::TensorDataType> inputIdsExt(batch->inputIds.size()); // @TODO : opti copies
         std::copy(batch->inputIds.begin(), batch->inputIds.end(), inputIdsExt.data());
         std::copy(inputIdsExt.begin(), inputIdsExt.end(), data);
         data += batch->inputIds.size();
@@ -272,15 +279,15 @@ void PrintTensorContent(const Ort::Value& value) {
     }
     std::cout << "]\n";
 
-    // Print the tensor data
-    std::cout << "Tensor data: ";
-    for (size_t i = 0; i < num_elements; ++i) {
-        std::cout << tensor_data[i] << " ";
-        if ((i + 1) % 10 == 0) {  // Print 10 elements per line for better readability
-            std::cout << "\n";
-        }
-    }
-    std::cout << "\n";
+    // // Print the tensor data
+    // std::cout << "Tensor data: ";
+    // for (size_t i = 0; i < num_elements; ++i) {
+    //     std::cout << tensor_data[i] << " ";
+    //     if ((i + 1) % 10 == 0) {  // Print 10 elements per line for better readability
+    //         std::cout << "\n";
+    //     }
+    // }
+    // std::cout << "\n";
 }
 
 void LlamaPipeline::createInputIdsTensorCache()
@@ -295,7 +302,25 @@ void LlamaPipeline::createPositionIdsTensorCache()
 
 void LlamaPipeline::generate(CppResult& outResult)
 {
+    // std::cout << "=============" << std::endl;
+    // std::cout << "input ids: " << std::endl;
     // PrintTensorContent<int64_t>(inputIdsTensor);
+    // std::cout << "attention mask: " << std::endl;
+    // PrintTensorContent<int64_t>(attentionMaskTensor);
+    // std::cout << "past " << std::endl;
+    // for (auto& t : pastTensors)
+    // {
+    //     PrintTensorContent<int64_t>(t);
+    // }
+    // std::cout << std::endl;
+    // std::cout << "logits: " << std::endl;
+    // PrintTensorContent<int64_t>(logitsTensor);
+    // std::cout << "present " << std::endl;
+    // for (auto& t : presentTensors)
+    // {
+    //     PrintTensorContent<int64_t>(t);
+    // }
+
     model->generate(ioBinding, outResult);
 }
 void LlamaPipeline::postGenerate(CppResult& outResult)
@@ -304,6 +329,11 @@ void LlamaPipeline::postGenerate(CppResult& outResult)
 
     SearchArgs searchArgs = createSearchArgs(logitsTensor, nextTokens);
     (*searchStrategy)(searchArgs, searchStrategyData); // filter and sample next tokens
+
+    if (subsequentGenerationIndex == 0)
+    {
+        seqLength = getInputLength()-1;
+    }
 
     // Update next inputs
     for (int64_t b = 0; b < nbBatches; ++b) 
@@ -323,7 +353,7 @@ void LlamaPipeline::postGenerate(CppResult& outResult)
         createAttentionMaskTensor();
         updateAttentionMaskTensorCache(1);
 
-        createLogitsTensor();
+        createLogitsTensorCache();
 
         bindInputIds();
         bindPositionIds();
@@ -417,7 +447,21 @@ void LlamaPipeline::reset()
     seqLength = 0;
 }
 
+void LlamaPipeline::batchUnwind(AutoRegressiveBatchHandle batch, int32_t tick)
+{
+	GenerationHistory* History = getHistory(batch);
+	history->removeAfterTick(tick);
 
+    TokenHistory& history = History->getEncodedTokensHistory();
+    const std::vector<int32_t>& tokens = history.getTokens();
+
+    reset();
+
+    int32_t nbTokensToSet = std::min(int32_t(tokens.size()), int32_t(maxInputLength));
+
+    batchReset(batch);
+    batchSet(batch, tokens.data() + tokens.size() - nbTokensToSet, nbTokensToSet, 0);
+}
 
 
 
@@ -450,10 +494,16 @@ int32_t LlamaPipeline::batchGetLastGeneratedToken(AutoRegressiveBatchHandle batc
 {
     return batches[batch]->lastGeneratedToken;
 }
-void LlamaPipeline::batchSet(AutoRegressiveBatchHandle batch, Batch::DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos)
+void LlamaPipeline::batchSet(AutoRegressiveBatchHandle batch, const Batch::DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos)
 {
+    assert(nbTokens <= maxInputLength);
     batches[batch]->set(inputTokens, nbTokens);
 }
+void LlamaPipeline::batchReset(AutoRegressiveBatchHandle batch)
+{
+    batches[batch]->reset();
+}
+
 void LlamaPipeline::setMaxInputLength(int32_t newMaxInputLength)
 {
     maxInputLength = newMaxInputLength;

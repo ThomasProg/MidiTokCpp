@@ -88,26 +88,37 @@ void GenerationHistory::convert()
         converter = createConverterFromTokenizer(&tokenizer);
     }
 
+    struct ConvertStruct
+    {
+        GenerationHistory* history;
+        bool isNote;
+    };
+
     converter->onNote = [](void* data, const Note& note)
     {
-        GenerationHistory* history = (GenerationHistory*) data;
-
-        history->notes.push_back(note);
+        ConvertStruct* conv = (ConvertStruct*) data;
+        conv->history->notes.push_back(note);
+        conv->isNote = true;
     };
 
     std::int32_t i = nextTokenToProcess;
 
-    const int32_t* decodedTokens = decodedTokensHistory.getTokens();
+    const int32_t* decodedTokens = decodedTokensHistory.getTokensData();
     size_t nbTokens = decodedTokensHistory.getTokensSize();
 	while (i < nbTokens)
 	{
         int32_t start = i;
-		bool isSuccess = converter->processToken(decodedTokens, int32_t(nbTokens), i, this);
+	
+        ConvertStruct conv{this, false};
+
+        bool isSuccess = converter->processToken(decodedTokens, int32_t(nbTokens), i, &conv);
 		if (isSuccess)
 		{
-            int32_t end = i;
-
-            noteIndexToDecodedTokenIndex.emplace_back(start, end);
+            if (conv.isNote)
+            {
+                int32_t end = i;
+                noteIndexToDecodedTokenIndex.emplace_back(start, end);
+            }
 
 			nextTokenToProcess = i;
 		}
@@ -156,6 +167,13 @@ void GenerationHistory::removeAfterTick(int32_t tick)
 
     encodedTokensHistory.removeAfterIndex(encodedTokenIndex);
     decodedTokensHistory.removeAfterIndex(decodedTokenIndexStart);
+
+    nextTokenToProcess = std::min(nextTokenToProcess, int32_t(decodedTokensHistory.getTokensSize()));
+
+    if (converter != nullptr)
+    {
+        converter->unwind(tick);
+    }
 }
 
 
@@ -215,4 +233,12 @@ bool hadTokenRecently(TokenHistoryHandle tokenHistory, int32_t token, int32_t ma
 {
     assert(tokenHistory != nullptr);
     return tokenHistory->hadTokenRecently(token, maxAge);
+}
+
+void tokenHistory_getTokens(TokenHistoryHandle tokenHistory, const int32_t** outTokens, int32_t* outSize)
+{
+    assert(tokenHistory != nullptr);
+    const std::vector<int32_t>& tokens = tokenHistory->getTokens();
+    *outTokens = tokens.data();
+    *outSize = int32_t(tokens.size());
 }

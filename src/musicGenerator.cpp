@@ -852,8 +852,9 @@ int32_t MusicGeneratorPipeline::batchGetLastGeneratedToken(AutoRegressiveBatchHa
 {
     return runInstance->batches[batch]->lastGeneratedToken;
 }
-void MusicGeneratorPipeline::batchSet(AutoRegressiveBatchHandle batch, DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos)
+void MusicGeneratorPipeline::batchSet(AutoRegressiveBatchHandle batch, const DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos)
 {
+    // @TODO : remove copies?
     std::vector<DataType> inTokens(nbTokens);
 
     for (std::int32_t i = 0; i < nbTokens; i++)

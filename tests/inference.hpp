@@ -2,6 +2,7 @@
 
 #include "fwd.h"
 #include <memory>
+#include "range.hpp"
 
 class Inf
 {
@@ -11,10 +12,15 @@ public:
     std::unique_ptr<MidiTokenizer> Tokenizer;
     AutoRegressiveBatchHandle Batch2;
 
+    RangeGroup SearchedRangeGroup;
+
     int32_t LineNbMaxToken = 512;
     int32_t NbTokensToGenerate = 300;
 
-    void runInference(const char* folderPath, bool printLogs);
+    std::vector<int32_t> EncodedTokens;
+
+    void load(const char* folderPath, bool printLogs);
+    void runInference();
 };
 
 class TokenHistoryTest

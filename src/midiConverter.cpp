@@ -80,12 +80,15 @@ bool REMIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::i
 }
 
 
-
+TSDConverter::TSDConverter()
+{
+    dynamicData.emplace_back();
+}
 
 void TSDConverter::reset()
 {
-    currentTick = 0;
-    previousNoteEnd = 0;
+    dynamicData.clear();
+    dynamicData.emplace_back();
     ticks_per_beat = 0;
 }
 bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t& index, void* data)
@@ -99,20 +102,21 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
     // @TODO : do at set only (so if timesig event, doesn't reset)
     ticks_per_beat = tok.time_division;
 
+    DynamicData current = dynamicData.back();
 
     if (tok.isTimeShift(token))
     {
-        // @TODO : remove at?
-        currentTick += tok._tpb_tokens_to_ticks.at(ticks_per_beat).at(tok.getTimeShiftValue(token));
+        current.currentTick += tok._tpb_tokens_to_ticks.at(ticks_per_beat).at(tok.getTimeShiftValue(token));
         index++;
+        dynamicData.push_back(current);
         return true;
     }
     else if (tok.isRest(token))
     {
-        currentTick = std::max(previousNoteEnd, currentTick);
-        // @TODO : remove at?
-        currentTick += tok._tpb_rests_to_ticks.at(ticks_per_beat).at(tok.getRestValue(token));
+        current.currentTick = std::max(current.previousNoteEnd, current.currentTick);
+        current.currentTick += tok._tpb_rests_to_ticks.at(ticks_per_beat).at(tok.getRestValue(token));
         index++;
+        dynamicData.push_back(current);
         return true;
     }
     else if (tok.isPitchFast(token)) // @TODO : PitchDrum, PitchIntervalTime, PitchIntervalChord
@@ -155,11 +159,12 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
 
         Note newNote;
         newNote.pitch = pitch;
-        newNote.tick = currentTick;
+        newNote.tick = current.currentTick;
         newNote.duration = duration;
         newNote.velocity = velocity;
         onNote(data, newNote);
         index += indexIncr;
+        dynamicData.push_back(current);
         return true;
     }
     else
@@ -190,13 +195,20 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
             throw std::logic_error("PitchBend not supported yet");
         }
 
-        previousNoteEnd = std::max(previousNoteEnd, currentTick);
+        current.previousNoteEnd = std::max(current.previousNoteEnd, current.currentTick);
+        dynamicData.push_back(current);
     }
 
     return false;
 }
 
-
+void TSDConverter::unwind(int32_t tick)
+{
+    while (dynamicData.size() > 1 && dynamicData.back().currentTick >= tick)
+    {
+        dynamicData.pop_back();
+    }
+}
 
 
 

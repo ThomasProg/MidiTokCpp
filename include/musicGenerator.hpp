@@ -256,7 +256,7 @@ public:
 
     // If the model has to be updated, for example RNN state being reset if resetting the batch
     virtual int32_t batchGetLastGeneratedToken(AutoRegressiveBatchHandle batch) override;
-    virtual void batchSet(AutoRegressiveBatchHandle batch, DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos) override;
+    virtual void batchSet(AutoRegressiveBatchHandle batch, const DataType* inputTokens, std::int32_t nbTokens, std::int32_t fromPos) override;
     virtual void setMaxInputLength(int32_t newMaxInputLength) override;
     virtual void reset() override;
 

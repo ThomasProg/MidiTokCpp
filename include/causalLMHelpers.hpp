@@ -29,6 +29,7 @@ public:
     virtual void createPresentTensors(int64_t presentLength);
 
     virtual void createLogitsTensor();
+    virtual void createLogitsTensorCache();
     virtual void createPastTensors(int64_t pastLength);
 
     virtual void updateInputIdsTensor() = 0;

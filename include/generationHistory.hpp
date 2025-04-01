@@ -17,8 +17,12 @@ private:
     std::vector<int32_t> tokens;
 
 public:
+    const std::vector<int32_t>& getTokens() const
+    {
+        return tokens;
+    }
 
-    const int32_t* getTokens() const
+    const int32_t* getTokensData() const
     {
         return tokens.data();
     } 

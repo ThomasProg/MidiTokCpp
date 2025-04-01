@@ -29,4 +29,5 @@ extern "C"
     API_EXPORT void addToken(TokenHistoryHandle tokenHistory, int32_t newToken);
     API_EXPORT bool findMostRecentAge(TokenHistoryHandle tokenHistory, int32_t token, int32_t* outAge);
     API_EXPORT bool hadTokenRecently(TokenHistoryHandle tokenHistory, int32_t token, int32_t maxAge);
+    API_EXPORT void tokenHistory_getTokens(TokenHistoryHandle tokenHistory, const int32_t** outTokens, int32_t* outSize);
 }

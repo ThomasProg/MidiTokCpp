@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <cassert>
 #include "range.h"
 
 static inline bool isColliding(const Range& a, const Range& b)

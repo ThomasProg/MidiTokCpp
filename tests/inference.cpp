@@ -9,7 +9,7 @@
 #include "searchArgs.h"
 #include "generationHistory.hpp"
 
-void Inf::runInference(const char* folderPath, bool printLogs)
+void Inf::load(const char* folderPath, bool printLogs)
 {
     std::string folderPathStr = folderPath;
 
@@ -38,13 +38,29 @@ void Inf::runInference(const char* folderPath, bool printLogs)
     Batch2 = ARPipeline->addBatch();
     ARPipeline->batchSet(Batch2, EncodedTokens.data(), int32_t(EncodedTokens.size()), 0);
 
-    RangeGroup SearchedRangeGroup;
     SearchedRangeGroup.addRange({0, Tokenizer->getNbEncodedTokens()-1});
 
     auto Search = [](const struct SearchArgs& args, void* searchStrategyData)
     {
-        RangeGroup* RangeGroupLocal = (RangeGroup*) searchStrategyData;
+		Inf* inf = (Inf*) searchStrategyData;
+        RangeGroup* RangeGroupLocal = &inf->SearchedRangeGroup;;
         rangeGroupUpdateCache(RangeGroupLocal);
+
+		{
+			SpecialPenaltyTransformArgs sArgs;
+			sArgs.pitchWindowSize = 20;
+			sArgs.pitchMaxAdditivePenalty = 0.05f;
+			specialPenaltyTransform(args.logitsTensor, RangeGroupLocal, inf->ARPipeline->getHistory(inf->Batch2), &sArgs);
+		}
+
+		MidiTokenizerHandle Tok = inf->Tokenizer.get();
+
+		{
+			musicalScalePenaltyTransform(args.logitsTensor, RangeGroupLocal, Scales::Ionian::CMajor::get(), Scales::Ionian::CMajor::size(), 1.05f, Tok);
+		}
+		{
+			pitchRangePenaltyTransform(args.logitsTensor, RangeGroupLocal, 40, 80, 0.05f, Tok);
+		}
 
         int nbTopTokenSize = 40;
         size_t CurrentRangeGroupSize = rangeGroupSize(RangeGroupLocal);
@@ -63,78 +79,26 @@ void Inf::runInference(const char* folderPath, bool printLogs)
         args.outNextTokens[0] = outToken;
     };
 
-    ARPipeline->setSearchStrategyData(&SearchedRangeGroup);
+    ARPipeline->setSearchStrategyData(this);
     ARPipeline->setSearchStrategy(Search);
 
     ARPipeline->createHistory(*Tokenizer);
+}
 
-
-
-
-    // std::vector<int32_t> StartTokens;
-    // ARPipeline->batchSet(Batch2, StartTokens.data(), StartTokens.size(), 0);
-    // ARPipeline->setMaxInputLength(1024);
-
+void Inf::runInference()
+{
     int32_t NbTokensSinceLastRefresh = 0;
 
     while (NbTokensSinceLastRefresh < NbTokensToGenerate)
 	{
-		// if (forceReupdate)
-		// {
-		// 	if (Pipeline != nullptr)
-		// 	{
-		// 		Pipeline->reset();
-		// 	}
-
-		// 	{
-		// 		TArray<int32> Context;
-		// 		int32 start = FMath::Max(0, EncodedTokens.Num() - LineNbMaxToken);
-		// 		for (int32 i = start; i < EncodedTokens.Num(); i++)
-		// 		{
-		// 			Context.Add(EncodedTokens[i]);
-		// 		}
-
-		// 		if (Pipeline != nullptr)
-		// 		{
-		// 			Pipeline->batchSet(Batch2, Context.GetData(), Context.Num(), start);
-		// 		}
-		// 		else
-		// 		{
-		// 			batch_set(batch, Context.GetData(), Context.Num(), start);
-		// 		}
-		// 	}
-		// }
-
-		// if (NbTokensSinceLastRefresh >= LineNbMaxToken)
-		// {
-		// 	if (Pipeline != nullptr)
-		// 	{
-		// 		Pipeline->reset();
-		// 	}
-
-		// 	TArray<int32> Context;
-		// 	int32 start = FMath::Max(0, EncodedTokens.Num() - LineNbMaxToken / 2);
-		// 	for (int32 i = start; i < EncodedTokens.Num(); i++)
-		// 	{
-		// 		Context.Add(EncodedTokens[i]);
-		// 	}
-
-		// 	if (Pipeline != nullptr)
-		// 	{
-		// 		Pipeline->batchSet(Batch2, Context.GetData(), Context.Num(), start);
-		// 	}
-
-		// 	NbTokensSinceLastRefresh = 0;
-		// }
-
         CppResult Result;
-        Pipeline->preGenerate(Result);
+        ARPipeline->preGenerate(Result);
         EXPECT_TRUE(Result.IsSuccess());
 
-        Pipeline->generate(Result);
+        ARPipeline->generate(Result);
         EXPECT_TRUE(Result.IsSuccess());
 
-        Pipeline->postGenerate(Result);
+        ARPipeline->postGenerate(Result);
         EXPECT_TRUE(Result.IsSuccess());
 
 		int32_t newToken;
@@ -161,7 +125,7 @@ void Inf::runInference(const char* folderPath, bool printLogs)
 
 void TokenHistoryTest::TestTokenHistory(const TokenHistory& tokenHistory)
 {
-	int nbTotalTokens = 0;
+	size_t nbTotalTokens = 0;
 	for (auto [key, value] : tokenHistory.tokensData)
 	{
 		nbTotalTokens += value.births.size();

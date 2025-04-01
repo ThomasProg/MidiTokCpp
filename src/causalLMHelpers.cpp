@@ -50,6 +50,14 @@ void IIOHandler::createLogitsTensor()
     *tensor = Ort::Value::CreateTensor<float>(getAllocator(), inputShape.data(), inputShape.size());
 }
 
+void IIOHandler::createLogitsTensorCache()
+{
+    Ort::Value* tensor = getLogitsTensor();
+    assert(tensor != nullptr);
+    const std::array<std::int64_t, 3> inputShape = {std::int64_t(getNbBatches()), 1, getVocabSize()};
+    *tensor = Ort::Value::CreateTensor<float>(getAllocator(), inputShape.data(), inputShape.size());
+}
+
 void IIOHandler::createPresentTensors(int64_t presentLength)
 {
     int32_t nbAttentionHeads = getNbAttentionHeads();
@@ -86,18 +94,17 @@ void IIOHandler::createFirstTimeTensors(CppResult& outResult)
 {
     try
     {
-        const int32_t seqLength = getInputLength();
         createInputIdsTensor();
         createPositionIdsTensor();
         createAttentionMaskTensor();
-        createPastTensors(seqLength-1);
+        createPastTensors(0);
 
         updateInputIdsTensor();
         updatePositionIdsTensor();
         updateAttentionMaskTensor();
         
         createLogitsTensor();
-        createPresentTensors(seqLength);
+        createPresentTensors(getInputLength());
 
         bind(outResult);
     }

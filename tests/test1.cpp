@@ -7,6 +7,7 @@
 #include <iostream>
 #include "note.h"
 #include "midiConverter.hpp"
+#include <chrono>
 
 TEST(MidiTokTests, GptTest)
 {
@@ -108,8 +109,94 @@ TEST(MidiTokTests, MistralRegenerateTest)
 	int lastTick = 0;
 	for (const Note& note : notes)
 	{
-		std::cout << note.tick << std::endl;
 		EXPECT_GE(note.tick, lastTick);
 		lastTick = note.tick;
 	}
+}
+
+TEST(MidiTokTests, MistralInference)
+{
+	getModelBuilderManager().registerModelBuilder("mistral", new Llama::LlamaBuilder());
+
+	const char* Path = WORKSPACE_PATH "Models/TSD/1.3.2";
+	Inf inf;
+	inf.NbTokensToGenerate = 300;
+	inf.load(Path, false);
+	inf.runInference();
+
+	GenerationHistory* history = inf.ARPipeline->getHistory(inf.Batch2);
+	history->convert();
+	const TokenHistory& encodedTokenHistory = history->getEncodedTokensHistory();
+	const std::vector<int32_t>& encodedTokens = encodedTokenHistory.getTokens();
+
+	for (const int32_t& token : encodedTokens)
+	{
+		std::cout << token << ", ";
+	}
+	std::cout << std::endl;
+}
+
+TEST(MidiTokTests, MistralInferenceTime)
+{
+	getModelBuilderManager().registerModelBuilder("mistral", new Llama::LlamaBuilder());
+
+	const char* Path = WORKSPACE_PATH "Models/TSD/1.3.2";
+	Inf inf;
+	inf.NbTokensToGenerate = 1026;
+	inf.load(Path, false);
+	inf.runInference();
+
+	GenerationHistory* history = inf.ARPipeline->getHistory(inf.Batch2);
+	history->convert();
+
+	inf.NbTokensToGenerate = 1000;
+
+	auto start = std::chrono::high_resolution_clock::now();	
+	
+	inf.runInference();
+	
+	auto end = std::chrono::high_resolution_clock::now();
+
+	long long elapsed = (end - start).count();
+
+	std::cout << "Elapsed: " << elapsed << std::endl;
+	std::cout << "Elapsed per token: " << double(elapsed)  / double(inf.NbTokensToGenerate) << std::endl;
+
+	std::cout << std::endl;
+}
+
+TEST(MidiTokTests, MistralInferenceTimeWithUnwind)
+{
+	getModelBuilderManager().registerModelBuilder("mistral", new Llama::LlamaBuilder());
+
+	const char* Path = WORKSPACE_PATH "Models/TSD/1.3.2";
+	Inf inf;
+	inf.NbTokensToGenerate = 1024+600;
+	inf.load(Path, false);
+	inf.runInference();
+
+	GenerationHistory* history = inf.ARPipeline->getHistory(inf.Batch2);
+	history->convert();
+
+	long long elapsed = 0;
+
+	for (int i = 0; i < 100; i++)
+	{
+		const std::vector<Note>& notes = history->getNotes();
+		inf.ARPipeline->batchUnwind(inf.Batch2, notes.back().tick-1);
+		inf.NbTokensToGenerate = 1;
+
+		auto start = std::chrono::high_resolution_clock::now();	
+	
+		inf.runInference();
+		
+		auto end = std::chrono::high_resolution_clock::now();
+
+		elapsed += (end - start).count();
+	}
+
+	std::cout << "Elapsed: " << elapsed << std::endl;
+	std::cout << "Elapsed per token: " << double(elapsed)  / double(inf.NbTokensToGenerate) << std::endl;
+
+	std::cout << std::endl;
 }

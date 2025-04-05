@@ -46,21 +46,21 @@ void Inf::load(const char* folderPath, bool printLogs)
         RangeGroup* RangeGroupLocal = &inf->SearchedRangeGroup;;
         rangeGroupUpdateCache(RangeGroupLocal);
 
-		{
-			SpecialPenaltyTransformArgs sArgs;
-			sArgs.pitchWindowSize = 20;
-			sArgs.pitchMaxAdditivePenalty = 0.05f;
-			specialPenaltyTransform(args.logitsTensor, RangeGroupLocal, inf->ARPipeline->getHistory(inf->Batch2), &sArgs);
-		}
+		// {
+		// 	SpecialPenaltyTransformArgs sArgs;
+		// 	sArgs.pitchWindowSize = 20;
+		// 	sArgs.pitchMaxAdditivePenalty = 0.05f;
+		// 	specialPenaltyTransform(args.logitsTensor, RangeGroupLocal, inf->ARPipeline->getHistory(inf->Batch2), &sArgs);
+		// }
 
 		MidiTokenizerHandle Tok = inf->Tokenizer.get();
 
-		{
-			musicalScalePenaltyTransform(args.logitsTensor, RangeGroupLocal, Scales::Ionian::CMajor::get(), Scales::Ionian::CMajor::size(), 1.05f, Tok);
-		}
-		{
-			pitchRangePenaltyTransform(args.logitsTensor, RangeGroupLocal, 40, 80, 0.05f, Tok);
-		}
+		// {
+		// 	musicalScalePenaltyTransform(args.logitsTensor, RangeGroupLocal, Scales::Ionian::CMajor::get(), Scales::Ionian::CMajor::size(), 1.05f, Tok);
+		// }
+		// {
+		// 	pitchRangePenaltyTransform(args.logitsTensor, RangeGroupLocal, 40, 80, 0.05f, Tok);
+		// }
 
         int nbTopTokenSize = 40;
         size_t CurrentRangeGroupSize = rangeGroupSize(RangeGroupLocal);
@@ -75,7 +75,7 @@ void Inf::load(const char* folderPath, bool printLogs)
 
         stableSoftmax(args.logitsTensor, LogitIndicesData, LogitIndicesData + nbTopTokenSize);
 
-        int outToken = topPSampling(args.logitsTensor, LogitIndicesData, LogitIndicesData + nbTopTokenSize, 0.5);
+        int outToken = topPSampling(args.logitsTensor, LogitIndicesData, LogitIndicesData + nbTopTokenSize, 0.2f);
         args.outNextTokens[0] = outToken;
     };
 
@@ -104,6 +104,7 @@ void Inf::runInference()
 		int32_t newToken;
         newToken = ARPipeline->batchGetLastGeneratedToken(Batch2);
 
+        if (false)
         {
             const int32_t* begin, *end; 
             Tokenizer->decodeTokenFast(newToken, begin, end);

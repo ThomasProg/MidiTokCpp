@@ -97,6 +97,10 @@ private:
     OrtAllocator* allocator = nullptr;
 
 public:
+    // rewind delta, if there is kv cache for too few tokens only, might lead to a bad generation
+    int32_t rewindMinContextLength = 0;
+
+public:
     LlamaPipeline(LlamaModel* inModel);
 
     // BEGIN - IPipeline
@@ -105,7 +109,7 @@ public:
     virtual void postGenerate(CppResult& outResult) override;
     virtual LlamaModel* getModel() const override;
     virtual void reset() override;
-    virtual void batchUnwind(AutoRegressiveBatchHandle batch, int32_t tick) override;
+    virtual void batchRewind(AutoRegressiveBatchHandle batch, int32_t tick) override;
     // END - IPipeline
 
     // BEGIN - IAutoRegressivePipeline
@@ -116,6 +120,11 @@ public:
     // returns the index of the new batch
     virtual AutoRegressiveBatchHandle addBatch() override;
     virtual void removeAllBatches() override;
+
+    Batch& getBatch(AutoRegressiveBatchHandle batch)
+    {
+        return *batches[batch];
+    }
 
     // If the model has to be updated, for example RNN state being reset if resetting the batch
     virtual int32_t batchGetLastGeneratedToken(AutoRegressiveBatchHandle batch) override;

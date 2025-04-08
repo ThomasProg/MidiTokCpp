@@ -19,7 +19,7 @@ public:
     bool processToken(const std::vector<int32_t>& tokens, std::int32_t& index, void* data = nullptr);
 
     // tick is included
-    virtual void unwind(int32_t tick) {}
+    virtual void rewind(int32_t tick) {}
 
     virtual ~MIDIConverter() = default;
 };
@@ -65,6 +65,6 @@ public:
     TSDConverter();
     virtual void reset() override;
     virtual bool processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t& index, void* data = nullptr) override;
-    virtual void unwind(int32_t tick) override;
+    virtual void rewind(int32_t tick) override;
 };
 

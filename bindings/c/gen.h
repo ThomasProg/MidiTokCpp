@@ -175,6 +175,7 @@ extern "C"
 
     API_EXPORT bool isBarNone(MidiTokenizerHandle tokenizer, std::int32_t token);
     API_EXPORT bool isPosition(MidiTokenizerHandle tokenizer, std::int32_t token);
+    API_EXPORT bool isTimeShift(MidiTokenizerHandle tokenizer, std::int32_t token);
     API_EXPORT bool isPitch(MidiTokenizerHandle tokenizer, std::int32_t token);
     API_EXPORT bool isDuration(MidiTokenizerHandle tokenizer, std::int32_t token);
     API_EXPORT bool isVelocity(MidiTokenizerHandle tokenizer, std::int32_t token);

@@ -98,7 +98,7 @@ TEST(MidiTokTests, MistralRegenerateTest)
 
 	GenerationHistory* history = inf.ARPipeline->getHistory(inf.Batch2);
 
-	inf.ARPipeline->batchUnwind(inf.Batch2, 50);
+	inf.ARPipeline->batchRewind(inf.Batch2, 50);
 
 	inf.runInference();
 
@@ -165,7 +165,7 @@ TEST(MidiTokTests, MistralInferenceTime)
 	std::cout << std::endl;
 }
 
-TEST(MidiTokTests, MistralInferenceTimeWithUnwind)
+TEST(MidiTokTests, MistralInferenceTimeWithRewind)
 {
 	getModelBuilderManager().registerModelBuilder("mistral", new Llama::LlamaBuilder());
 
@@ -183,7 +183,7 @@ TEST(MidiTokTests, MistralInferenceTimeWithUnwind)
 	for (int i = 0; i < 100; i++)
 	{
 		const std::vector<Note>& notes = history->getNotes();
-		inf.ARPipeline->batchUnwind(inf.Batch2, notes.back().tick-1);
+		inf.ARPipeline->batchRewind(inf.Batch2, notes.back().tick-1);
 		inf.NbTokensToGenerate = 1;
 
 		auto start = std::chrono::high_resolution_clock::now();	
@@ -199,4 +199,32 @@ TEST(MidiTokTests, MistralInferenceTimeWithUnwind)
 	std::cout << "Elapsed per token: " << double(elapsed)  / double(inf.NbTokensToGenerate) << std::endl;
 
 	std::cout << std::endl;
+}
+
+
+TEST(MidiTokTests, MistralRewindKeepKVCache)
+{
+	getModelBuilderManager().registerModelBuilder("mistral", new Llama::LlamaBuilder());
+
+	const char* Path = WORKSPACE_PATH "Models/TSD/1.3.2";
+	Inf inf;
+	inf.NbTokensToGenerate = 100;
+	inf.load(Path, false);
+	inf.runInference();
+
+	GenerationHistory* history = inf.ARPipeline->getHistory(inf.Batch2);
+	history->convert();
+
+	long long elapsed = 0;
+
+	const std::vector<Note>& notes = history->getNotes();
+	inf.ARPipeline->batchRewind(inf.Batch2, notes.back().tick-10);
+
+	inf.NbTokensToGenerate = 1024;
+	inf.runInference();
+
+	inf.ARPipeline->batchRewind(inf.Batch2, notes.back().tick-1);
+
+	inf.NbTokensToGenerate = 5;
+	inf.runInference();
 }

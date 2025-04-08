@@ -172,7 +172,7 @@ void GenerationHistory::removeAfterTick(int32_t tick)
 
     if (converter != nullptr)
     {
-        converter->unwind(tick);
+        converter->rewind(tick);
     }
 }
 

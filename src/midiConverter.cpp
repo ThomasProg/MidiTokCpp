@@ -202,7 +202,7 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
     return false;
 }
 
-void TSDConverter::unwind(int32_t tick)
+void TSDConverter::rewind(int32_t tick)
 {
     while (dynamicData.size() > 1 && dynamicData.back().currentTick >= tick)
     {

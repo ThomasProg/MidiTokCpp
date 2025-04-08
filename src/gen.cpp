@@ -422,6 +422,10 @@ bool isPosition(MidiTokenizerHandle tokenizer, std::int32_t token)
 {
     return tokenizer->isPosition(token);
 }
+bool isTimeShift(MidiTokenizerHandle tokenizer, std::int32_t token)
+{
+    return tokenizer->isTimeShiftFast(token);
+}
 bool isPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
 {
     // return tokenizer->isPitch(token);

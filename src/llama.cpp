@@ -94,6 +94,8 @@ LlamaPipeline::LlamaPipeline(LlamaModel* inModel) : model(inModel)
     api->GetAllocatorWithDefaultOptions(&allocator);
     ioBinding = Ort::IoBinding(*inModel->getSession());
     maxInputLength = inModel->modelInfo.nbMaxPositions;
+
+    rewindMinContextLength = int32_t(inModel->modelInfo.nbMaxPositions) / 2;
 }
 
 void LlamaPipeline::updateInputIdsTensor()
@@ -447,20 +449,79 @@ void LlamaPipeline::reset()
     seqLength = 0;
 }
 
-void LlamaPipeline::batchUnwind(AutoRegressiveBatchHandle batch, int32_t tick)
+void LlamaPipeline::batchRewind(AutoRegressiveBatchHandle batch, int32_t tick)
 {
-	GenerationHistory* History = getHistory(batch);
-	history->removeAfterTick(tick);
+	GenerationHistory* genHistory = getHistory(batch);
+    TokenHistory& encodedTokensHistory = genHistory->getEncodedTokensHistory();
+    const int32_t nbEncodedTokensBefore = int32_t(encodedTokensHistory.getTokensSize());
+    
+	genHistory->removeAfterTick(tick);
 
-    TokenHistory& history = History->getEncodedTokensHistory();
-    const std::vector<int32_t>& tokens = history.getTokens();
+    const std::vector<int32_t>& tokens = encodedTokensHistory.getTokens();
 
-    reset();
+    const int32_t nbTokensRemoved = nbEncodedTokensBefore - int32_t(tokens.size());
 
-    int32_t nbTokensToSet = std::min(int32_t(tokens.size()), int32_t(maxInputLength));
+    int32_t presentLength = int32_t(std::min(seqLength+1, maxInputLength-1)); 
 
-    batchReset(batch);
-    batchSet(batch, tokens.data() + tokens.size() - nbTokensToSet, nbTokensToSet, 0);
+    // If no kv cache matches, just fully reset and return
+    // @TODO : add delta? if there is only kv cache for 1 token, might lead to a generation too bad
+    assert(rewindMinContextLength >= 0);
+    if (nbTokensRemoved >= presentLength - rewindMinContextLength)
+    {
+        reset();
+
+        int32_t nbTokensToSet = std::min(int32_t(tokens.size()), int32_t(maxInputLength));
+
+        batchReset(batch);
+        batchSet(batch, tokens.data() + tokens.size() - nbTokensToSet, nbTokensToSet, 0);
+
+        return;
+    }
+    else // reuse kv cache for faster generation (trading some context quality)
+    {
+        subsequentGenerationIndex -= nbTokensRemoved;
+
+        seqLength = seqLength - nbTokensRemoved; 
+
+        Batch& b = getBatch(batch);
+        b.lastGeneratedToken = encodedTokensHistory.getTokens().back();
+        b.inputIds.resize(1, b.lastGeneratedToken);
+
+        for (Ort::Value& presentTensor : presentTensors)
+        {
+            Ort::TensorTypeAndShapeInfo shapeInfo = presentTensor.GetTensorTypeAndShapeInfo();
+            std::vector<int64_t> shape = shapeInfo.GetShape();
+        
+            int64_t seq_len = shape[2]; // Assume dim 2 is seq_len
+            int64_t new_seq_len = seq_len - nbTokensRemoved;
+        
+            shape[2] = new_seq_len;
+        
+            float* original_data = presentTensor.GetTensorMutableData<float>();
+        
+            size_t elements_per_token = shape[3];
+            size_t num_heads = shape[1];
+            size_t batch = shape[0];
+            size_t keep_elements = batch * num_heads * new_seq_len * elements_per_token;
+        
+            // Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+        
+            // Ort::Value truncatedTensor = Ort::Value::CreateTensor<float>(
+            //     memory_info,
+            //     original_data,
+            //     keep_elements,      // only use the truncated amount
+            //     shape.data(),
+            //     shape.size()
+            // );
+
+            Ort::Value truncatedTensor = Ort::Value::CreateTensor<float>(getAllocator(), shape.data(), shape.size());
+
+            memcpy(truncatedTensor.GetTensorMutableData<float>(), original_data, keep_elements);
+        
+            // Replace presentTensor with truncated version
+            presentTensor = std::move(truncatedTensor);
+        }
+    }
 }
 
 

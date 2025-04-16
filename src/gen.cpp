@@ -215,6 +215,11 @@ void tokenizer_decodeIDs_free(std::int32_t* outputIDs)
     delete[] outputIDs;
 }
 
+void tokenizer_decodeTokenFast(const MidiTokenizer* tokenizer, std::int32_t encodedToken, const std::int32_t** outDecodedTokensBegin, const std::int32_t** outDecodedTokensEnd)
+{
+    tokenizer->decodeTokenFast(encodedToken, *outDecodedTokensBegin, *outDecodedTokensEnd);
+}
+
 void tokenizer_decodeToken(MidiTokenizerHandle tokenizer, std::int32_t encodedToken, std::int32_t** outDecodedTokens, std::int32_t* outNbDecodedTokens)
 {
     std::vector<int32_t> decodedTokens(10);
@@ -414,42 +419,50 @@ void runInstance_setSearchStrategy(RunInstanceHandle runInstance, TSearchStrateg
     runInstance->searchStrategy = searchStrategy;
 }
 
-bool isBarNone(MidiTokenizerHandle tokenizer, std::int32_t token)
+bool isBarNone(const MidiTokenizer* tokenizer, std::int32_t token)
 {
     return tokenizer->isBarNone(token);
 }
-bool isPosition(MidiTokenizerHandle tokenizer, std::int32_t token)
+bool isPosition(const MidiTokenizer* tokenizer, std::int32_t token)
 {
     return tokenizer->isPosition(token);
 }
-bool isTimeShift(MidiTokenizerHandle tokenizer, std::int32_t token)
+bool isTimeShift(const MidiTokenizer* tokenizer, std::int32_t token)
 {
     return tokenizer->isTimeShiftFast(token);
 }
-bool isPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
+bool isPitch(const MidiTokenizer* tokenizer, std::int32_t token)
 {
     // return tokenizer->isPitch(token);
     return tokenizer->isPitchFast(token);
 }
-bool isDuration(MidiTokenizerHandle tokenizer, std::int32_t token)
+bool isDuration(const MidiTokenizer* tokenizer, std::int32_t token)
 {
     return tokenizer->isDuration(token);
 }
-bool isVelocity(MidiTokenizerHandle tokenizer, std::int32_t token)
+bool isVelocity(const MidiTokenizer* tokenizer, std::int32_t token)
 {
     return tokenizer->isVelocity(token);
 }
 
-std::int32_t getPosition(MidiTokenizerHandle tokenizer, std::int32_t token)
+std::int32_t getPosition(const MidiTokenizer* tokenizer, std::int32_t token)
 {
     return tokenizer->getPositionValue(token);
 }
-std::int32_t getPitch(MidiTokenizerHandle tokenizer, std::int32_t token)
+std::int32_t getPitch(const MidiTokenizer* tokenizer, std::int32_t token)
 {
     // return tokenizer->getPitchValue(token);
     return std::int32_t(tokenizer->getPitchValueFast(token));
 }
 
+int32_t strToToken(const MidiTokenizer* tokenizer, const char* str)
+{
+    return tokenizer->strToToken(str);
+}
+int32_t findPitchToken(const MidiTokenizer* tokenizer, int32_t pitch)
+{
+    return tokenizer->findPitchToken(pitch);
+}
 
 
 

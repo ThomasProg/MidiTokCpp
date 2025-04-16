@@ -76,6 +76,7 @@ public:
     GenerationHistory(const MidiTokenizer& inTokenizer) : tokenizer(inTokenizer) {}
 
     const std::vector<Note>& getNotes() const;
+    std::vector<Note>& getNotes();
 
     const MidiTokenizer& getTokenizer() const
     {
@@ -103,8 +104,24 @@ public:
         return decodedTokensHistory;
     }
 
+    void addStandaloneNote(const Note& note);
     void convert();
+    size_t tickToNoteIndex(int32_t tick) const;
+    size_t tickToDecodedTokenIndex(int32_t tick) const;
+    size_t tickToEncodedTokenIndex(int32_t tick) const;
     void removeAfterTick(int32_t tick);
+    void removeLastTimeshift();
 
     friend class GenerationHistoryTest;
+    friend class OnAddTokensArgs;
+
+public:
+    using TOnEncodedTokenAdded = void (*)(OnAddTokensArgs* args);
+    static TOnEncodedTokenAdded getDefaultOnEncodedTokenAdded();
+    TOnEncodedTokenAdded onEncodedTokenAdded = getDefaultOnEncodedTokenAdded();
+    void* onEncodedTokenAddedData = nullptr;
+
+    using TOnNoteAdded = void (*)(void* userData);
+    volatile TOnNoteAdded onNoteAdded = nullptr;
+    void* onNoteAddedData = nullptr;
 };

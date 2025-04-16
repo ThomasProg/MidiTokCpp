@@ -1,5 +1,7 @@
 #include "generationHistory.h"
 #include "generationHistory.hpp"
+#include "onAddTokensArgs.hpp"
+
 #include <cassert>
 #include "midiTokenizer.hpp"
 #include "midiConverter.hpp"
@@ -58,28 +60,41 @@ const std::vector<Note>& GenerationHistory::getNotes() const
     return notes;
 }
 
-void GenerationHistory::addEncodedToken(int32_t newEncodedToken)
+std::vector<Note>& GenerationHistory::getNotes()
 {
-    // static thread_local std::vector<int32_t> decodedTokens;
-    // tokenizer.decodeToken(newEncodedToken, decodedTokens);
-
-    const int32_t* outDecodedTokensBegin;
-    const int32_t* outDecodedTokensEnd;
-    tokenizer.decodeTokenFast(newEncodedToken, outDecodedTokensBegin, outDecodedTokensEnd);
-
-    const int32_t encodedTokenIndex = encodedTokensHistory.getCurrentTokenTurn();
-    
-    while (outDecodedTokensBegin != outDecodedTokensEnd)
-    {
-        decodedTokensHistory.addToken(*outDecodedTokensBegin);
-        decodedTokenIndexToEncodedTokenIndex.push_back(encodedTokenIndex);
-
-        ++outDecodedTokensBegin;
-    }
-
-    encodedTokensHistory.addToken(newEncodedToken);
+    return notes;
 }
 
+GenerationHistory::TOnEncodedTokenAdded GenerationHistory::getDefaultOnEncodedTokenAdded()
+{
+    return [](OnAddTokensArgs* args)
+    {
+        const MidiTokenizer& tokenizer = args->getTokenizer();
+
+        const int32_t* outDecodedTokensBegin;
+        const int32_t* outDecodedTokensEnd;
+        tokenizer.decodeTokenFast(args->getNewEncodedToken(), outDecodedTokensBegin, outDecodedTokensEnd);
+
+        while (outDecodedTokensBegin != outDecodedTokensEnd)
+        {
+            args->addDecodedToken(*outDecodedTokensBegin);
+            ++outDecodedTokensBegin;
+        }
+    };
+}
+
+void GenerationHistory::addEncodedToken(int32_t newEncodedToken)
+{
+    OnAddTokensArgs args(*this, newEncodedToken);
+    onEncodedTokenAdded(&args);
+}
+
+void GenerationHistory::addStandaloneNote(const Note& note)
+{
+    notes.push_back(note);
+    int32_t decodedTokenIndex = decodedTokenIndexToEncodedTokenIndex.size();
+    noteIndexToDecodedTokenIndex.emplace_back(decodedTokenIndex, decodedTokenIndex);
+}
 void GenerationHistory::convert()
 {
     // assert(converter != nullptr);
@@ -118,6 +133,10 @@ void GenerationHistory::convert()
             {
                 int32_t end = i;
                 noteIndexToDecodedTokenIndex.emplace_back(start, end);
+                if (onNoteAdded != nullptr)
+                {
+                    onNoteAdded(onNoteAddedData);
+                }
             }
 
 			nextTokenToProcess = i;
@@ -134,12 +153,33 @@ void GenerationHistory::convert()
 	}
 }
 
+size_t GenerationHistory::tickToNoteIndex(int32_t tick) const
+{
+    auto rit = std::find_if(notes.rbegin(), notes.rend(), [tick](const Note& elem)
+    {
+        return elem.tick < tick;
+    });
+
+    return notes.rend() - rit;
+}
+
+size_t GenerationHistory::tickToDecodedTokenIndex(int32_t tick) const
+{
+    return noteIndexToDecodedTokenIndex[tickToNoteIndex(tick)].first;
+}
+
+size_t GenerationHistory::tickToEncodedTokenIndex(int32_t tick) const
+{
+    return decodedTokenIndexToEncodedTokenIndex[tickToDecodedTokenIndex(tick)];
+}
+
 void GenerationHistory::removeAfterTick(int32_t tick)
 {
     convert();
 
     if (notes.empty())
     {
+        removeLastTimeshift();
         return;
     }
 
@@ -155,6 +195,7 @@ void GenerationHistory::removeAfterTick(int32_t tick)
     size_t index = notes.rend() - rit;
     if (index >= notes.size())
     {
+        removeLastTimeshift();
         return;
     }
     notes.erase(notes.begin() + index, notes.end());
@@ -162,20 +203,48 @@ void GenerationHistory::removeAfterTick(int32_t tick)
 
     noteIndexToDecodedTokenIndex.erase(noteIndexToDecodedTokenIndex.begin() + index, noteIndexToDecodedTokenIndex.end());
     
-    int32_t encodedTokenIndex = decodedTokenIndexToEncodedTokenIndex[decodedTokenIndexStart];
-    decodedTokenIndexToEncodedTokenIndex.erase(decodedTokenIndexToEncodedTokenIndex.begin() + decodedTokenIndexStart, decodedTokenIndexToEncodedTokenIndex.end());
+    if (decodedTokenIndexStart < decodedTokenIndexToEncodedTokenIndex.size())
+    {
+        int32_t encodedTokenIndex = decodedTokenIndexToEncodedTokenIndex[decodedTokenIndexStart];
+        decodedTokenIndexToEncodedTokenIndex.erase(decodedTokenIndexToEncodedTokenIndex.begin() + decodedTokenIndexStart, decodedTokenIndexToEncodedTokenIndex.end());
 
-    encodedTokensHistory.removeAfterIndex(encodedTokenIndex);
-    decodedTokensHistory.removeAfterIndex(decodedTokenIndexStart);
+        encodedTokensHistory.removeAfterIndex(encodedTokenIndex);
+        decodedTokensHistory.removeAfterIndex(decodedTokenIndexStart);
 
-    nextTokenToProcess = std::min(nextTokenToProcess, int32_t(decodedTokensHistory.getTokensSize()));
+        nextTokenToProcess = std::min(nextTokenToProcess, int32_t(decodedTokensHistory.getTokensSize()));
+    }
 
     if (converter != nullptr)
     {
         converter->rewind(tick);
     }
+
+    removeLastTimeshift();
 }
 
+void GenerationHistory::removeLastTimeshift()
+{
+    const std::vector<int32_t>& tokens = decodedTokensHistory.getTokens();
+    int32_t i = tokens.size() - 1;
+    while (i >= 0 && tokenizer.isTimeShiftFast(tokens[i]))
+    {
+        i--;
+    }
+    i++;
+
+    if (i >= tokens.size())
+    {
+        return;
+    }
+
+    for (; i < tokens.size(); i++)
+    {
+        converter->undo();
+        decodedTokenIndexToEncodedTokenIndex.pop_back();
+    }
+
+    decodedTokensHistory.removeAfterIndex(i);
+}
 
 
 
@@ -219,6 +288,19 @@ void generationHistory_getNotes(const GenerationHistoryHandle genHistory, const 
     *outLength = notes.size();
 }
  
+void generationHistory_getNotesMut(const GenerationHistoryHandle genHistory, struct Note** outNotes, size_t* outLength)
+{
+    std::vector<Note>& notes = genHistory->getNotes();
+    *outNotes = notes.data();
+    *outLength = notes.size();
+}
+
+void generationHistory_addStandaloneNote(const GenerationHistoryHandle genHistory, struct Note* inNote)
+{
+    genHistory->addStandaloneNote(*inNote);
+}
+
+
 
 void addToken(TokenHistoryHandle tokenHistory, int32_t newToken)
 {
@@ -241,4 +323,49 @@ void tokenHistory_getTokens(TokenHistoryHandle tokenHistory, const int32_t** out
     const std::vector<int32_t>& tokens = tokenHistory->getTokens();
     *outTokens = tokens.data();
     *outSize = int32_t(tokens.size());
+}
+
+OnAddTokensArgs::OnAddTokensArgs(GenerationHistory& inHistory, int32_t inEncodedToken) : history(inHistory), encodedTokenIndex(inHistory.encodedTokensHistory.getCurrentTokenTurn()), newEncodedToken(inEncodedToken)
+{
+    history.encodedTokensHistory.addToken(newEncodedToken);
+}
+
+// Only decoded tokens can be added
+// Encoded tokens are used in the kv cache, so they can't be manipulated freely, or the kv cache would have to be modifed too
+void OnAddTokensArgs::addDecodedToken(int newDecodedToken)
+{
+    history.decodedTokensHistory.addToken(newDecodedToken);
+    history.decodedTokenIndexToEncodedTokenIndex.push_back(encodedTokenIndex);
+}
+
+const MidiTokenizer& OnAddTokensArgs::getTokenizer() const
+{
+    return history.getTokenizer();
+}
+
+void* OnAddTokensArgs::getUserData()
+{
+    return history.onEncodedTokenAddedData;
+}
+
+void generationHistory_setOnEncodedTokenAdded(const GenerationHistoryHandle genHistory, TOnEncodedTokenAdded inOnEncodedTokenAdd)
+{
+    genHistory->onEncodedTokenAdded = inOnEncodedTokenAdd;
+}
+TOnEncodedTokenAdded generationHistory_getDefaultOnEncodedTokenAdded()
+{
+    return GenerationHistory::getDefaultOnEncodedTokenAdded();
+}
+void generationHistory_setOnEncodedTokenAddedData(const GenerationHistoryHandle genHistory, void* inOnEncodedTokenAddData)
+{
+    genHistory->onEncodedTokenAddedData = inOnEncodedTokenAddData;
+}
+
+void generationHistory_setOnNoteAdded(GenerationHistory* genHistory, TOnNoteAdded inOnNoteAdded)
+{
+    genHistory->onNoteAdded = inOnNoteAdded;
+}
+void generationHistory_setOnNoteAddedData(GenerationHistory* genHistory, void* inOnNoteAddedData)
+{
+    genHistory->onNoteAddedData = inOnNoteAddedData;
 }

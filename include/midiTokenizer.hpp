@@ -531,6 +531,16 @@ public:
         const std::string& str = __vocab_base_inv.at(token);
         return startBy(str.c_str(), "PitchBend_");
     }
+    
+    int32_t strToToken(const std::string& str) const
+    {
+        return _vocab_base.at(str);
+    }
+
+    int32_t findPitchToken(int32_t pitch) const
+    {
+        return strToToken("Pitch_" + std::to_string(pitch));
+    }
 
     template<typename PREDICATE>
     void addTokensStartingBy(RangeGroup& outRangeGroup, PREDICATE predicate);

@@ -2,6 +2,7 @@
 #include "modelLoadingParams.hpp"
 #include "searchArgs.h"
 #include "llama.h"
+#include "onAddTokensArgs.hpp"
 
 #include <iostream>
 

@@ -210,6 +210,11 @@ void TSDConverter::rewind(int32_t tick)
     }
 }
 
+void TSDConverter::undo()
+{
+    dynamicData.pop_back();
+}
+
 
 
 MidiConverterHandle createConverterFromTokenizer(const MidiTokenizer* tokenizer)

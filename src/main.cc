@@ -408,37 +408,37 @@ int main()
 
 	std::cout << "duration : " << duration << std::endl;
 
-	MidiConverterHandle converter = createMidiConverter();
-	converterSetTokenizer(converter, tok);
-	// return 0;
+	// MidiConverterHandle converter = createMidiConverter();
+	// converterSetTokenizer(converter, tok);
+	// // return 0;
 
-	converterSetOnNote(converter, [](void* data, const Note& newNote)
-	{
-		std::cout << "note: ";
-		std::cout << "Pitch: " << newNote.pitch << " / ";
-		std::cout << "Duration: " << newNote.duration << " / ";
-		std::cout << "Velocity: " << newNote.velocity << " / ";
-		std::cout << "Tick: " << newNote.tick << std::endl;
-	});
-
-
-	std::int32_t i = 0;
-	while (i < outTokensSize)
-	{
-
-		bool isSuccess = converterProcessToken(converter, outTokens, outTokensSize, &i, nullptr);
-		if (isSuccess)
-		{
-			// nextTokenToProcess = i;
-		}
-		else
-		{
-			i++; // ignore current token and continue
-		}
-	}
+	// converterSetOnNote(converter, [](void* data, const Note& newNote)
+	// {
+	// 	std::cout << "note: ";
+	// 	std::cout << "Pitch: " << newNote.pitch << " / ";
+	// 	std::cout << "Duration: " << newNote.duration << " / ";
+	// 	std::cout << "Velocity: " << newNote.velocity << " / ";
+	// 	std::cout << "Tick: " << newNote.tick << std::endl;
+	// });
 
 
-	destroyMidiConverter(converter);
+	// std::int32_t i = 0;
+	// while (i < outTokensSize)
+	// {
+
+	// 	bool isSuccess = converterProcessToken(converter, outTokens, outTokensSize, &i, nullptr);
+	// 	if (isSuccess)
+	// 	{
+	// 		// nextTokenToProcess = i;
+	// 	}
+	// 	else
+	// 	{
+	// 		i++; // ignore current token and continue
+	// 	}
+	// }
+
+
+	// destroyMidiConverter(converter);
 
 	// RedirectorHandle redirector = createRedirector();
 

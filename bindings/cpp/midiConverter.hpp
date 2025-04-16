@@ -20,6 +20,7 @@ public:
 
     // tick is included
     virtual void rewind(int32_t tick) {}
+    virtual void undo() {}
 
     virtual ~MIDIConverter() = default;
 };
@@ -27,7 +28,7 @@ public:
 
 
 // miditok/tokenizations/remi.py/_tokens_to_score()
-class API_EXPORT REMIConverter: public MIDIConverter 
+class REMIConverter: public MIDIConverter 
 {
 public:
     std::int32_t currentTick = 0;
@@ -44,7 +45,7 @@ public:
 
 
 // miditok/tokenizations/tsd.py/_tokens_to_score()
-class API_EXPORT TSDConverter: public MIDIConverter 
+class TSDConverter: public MIDIConverter 
 {
 public:
     // The data that can change with every processToken
@@ -66,5 +67,6 @@ public:
     virtual void reset() override;
     virtual bool processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t& index, void* data = nullptr) override;
     virtual void rewind(int32_t tick) override;
+    virtual void undo() override;
 };
 

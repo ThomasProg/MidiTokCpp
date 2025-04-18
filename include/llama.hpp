@@ -140,6 +140,14 @@ public:
     {
         return history.get(); // @TODO : add multiple batches support
     }
+    virtual void addCallbackToSequencer(AutoRegressiveBatchHandle batchHandle, int32_t tick, Callback callback) override
+    {
+        getHistory(batchHandle)->getSequencer().addCallback(tick, callback);
+    }
+    virtual void setSequencerUserData(AutoRegressiveBatchHandle batchHandle, void* userData)
+    {
+        getHistory(batchHandle)->getSequencer().setUserData(userData);
+    }
     // END - IAutoRegressivePipeline
 
 private:

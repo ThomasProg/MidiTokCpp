@@ -13,6 +13,7 @@ public:
     RedirectorHandle redirector;
 
     void (*onNote)(void* data, const Note&);
+    void (*onNewTick)(void* data, int32_t newTick);
 
     virtual void reset() = 0;
     virtual bool processToken(const int32_t* tokens, int32_t nbTokens, std::int32_t& index, void* data = nullptr) = 0;
@@ -21,6 +22,14 @@ public:
     // tick is included
     virtual void rewind(int32_t tick) {}
     virtual void undo() {}
+
+    void tryOnNewTick(void* userData, int32_t newTick)
+    {
+        if (onNewTick != nullptr)
+        {
+            onNewTick(userData, newTick);
+        }
+    }
 
     virtual ~MIDIConverter() = default;
 };

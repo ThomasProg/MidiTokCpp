@@ -97,24 +97,30 @@ void GenerationHistory::addStandaloneNote(const Note& note)
 }
 void GenerationHistory::convert()
 {
-    // assert(converter != nullptr);
-    if (converter == nullptr)
-    {
-        converter = createConverterFromTokenizer(&tokenizer);
-    }
-
     struct ConvertStruct
     {
         GenerationHistory* history;
         bool isNote;
     };
 
-    converter->onNote = [](void* data, const Note& note)
+    if (converter == nullptr)
     {
-        ConvertStruct* conv = (ConvertStruct*) data;
-        conv->history->notes.push_back(note);
-        conv->isNote = true;
-    };
+        converter = createConverterFromTokenizer(&tokenizer);
+
+        musicAdaptSequencer.setUserData(this);
+        converter->onNewTick = [](void* data, int32_t newTick)
+        {
+            ConvertStruct* conv = (ConvertStruct*) data;
+            conv->history->musicAdaptSequencer.advance(newTick);
+        };
+
+        converter->onNote = [](void* data, const Note& note)
+        {
+            ConvertStruct* conv = (ConvertStruct*) data;
+            conv->history->notes.push_back(note);
+            conv->isNote = true;
+        };
+    }
 
     std::int32_t i = nextTokenToProcess;
 

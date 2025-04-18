@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include "note.h"
+#include "musicAdaptSequencer.hpp"
 
 class TokenHistory
 {
@@ -71,6 +72,8 @@ private:
     const MidiTokenizer& tokenizer;
     MIDIConverter* converter = nullptr;
 
+    Sequencer musicAdaptSequencer;
+
 public:
     GenerationHistory() = delete;
     GenerationHistory(const MidiTokenizer& inTokenizer) : tokenizer(inTokenizer) {}
@@ -104,6 +107,11 @@ public:
         return decodedTokensHistory;
     }
 
+    Sequencer& getSequencer()
+    {
+        return musicAdaptSequencer;
+    }
+
     void addStandaloneNote(const Note& note);
     void convert();
     size_t tickToNoteIndex(int32_t tick) const;
@@ -122,6 +130,6 @@ public:
     void* onEncodedTokenAddedData = nullptr;
 
     using TOnNoteAdded = void (*)(void* userData);
-    volatile TOnNoteAdded onNoteAdded = nullptr;
+    TOnNoteAdded onNoteAdded = nullptr;
     void* onNoteAddedData = nullptr;
 };

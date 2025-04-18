@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdio>
+#include <cstdint>
 #include <string>
 #include "utilities.hpp"
 #include "fwd.hpp"
@@ -74,4 +74,8 @@ public:
     // Owned by the pipeline, no need to destroy
     virtual void createHistory(const MidiTokenizer& tokenizer) = 0;
     virtual class GenerationHistory* getHistory(AutoRegressiveBatchHandle batchHandle) const = 0;
+
+    using Callback = void(*)(int32_t tick, void* userData);
+    virtual void addCallbackToSequencer(AutoRegressiveBatchHandle batchHandle, int32_t tick, Callback callback) {}
+    virtual void setSequencerUserData(AutoRegressiveBatchHandle batchHandle, void* userData) {}
 };

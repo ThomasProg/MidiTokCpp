@@ -30,6 +30,7 @@ bool REMIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::i
         if (currentBar > 0)
         {
             currentTick = tickAtCurrentBar + ticksPerBar;
+            tryOnNewTick(data, currentTick);
         }
         tickAtCurrentBar = currentTick;
         index++;
@@ -42,6 +43,7 @@ bool REMIConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::i
             currentBar = 0;
         }
         currentTick = tickAtCurrentBar + tokenizer.getPositionValue(token) * ticksPerPos;
+        tryOnNewTick(data, currentTick);
         index++;
         return true;
     }
@@ -107,6 +109,7 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
     if (tok.isTimeShift(token))
     {
         current.currentTick += tok._tpb_tokens_to_ticks.at(ticks_per_beat).at(tok.getTimeShiftValue(token));
+        tryOnNewTick(data, current.currentTick);
         index++;
         dynamicData.push_back(current);
         return true;
@@ -115,6 +118,7 @@ bool TSDConverter::processToken(const int32_t* tokens, int32_t nbTokens, std::in
     {
         current.currentTick = std::max(current.previousNoteEnd, current.currentTick);
         current.currentTick += tok._tpb_rests_to_ticks.at(ticks_per_beat).at(tok.getRestValue(token));
+        tryOnNewTick(data, current.currentTick);
         index++;
         dynamicData.push_back(current);
         return true;

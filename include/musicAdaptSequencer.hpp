@@ -4,13 +4,23 @@
 
 class Sequencer
 {
-    // sorted
+    using Hash = int32_t;
+    using Callback = void(*)(int32_t hash, int32_t tick, void* userData);
+    struct EventData
+    {
+        Hash hash;
+        int32_t tick;
+        Callback callback;
+        Callback undoCallback;
+    };
+
+    // sorted by tick
     // tick to callback
-    using Callback = void(*)(int32_t tick, void* userData);
-    std::vector<std::pair<int32_t, Callback>> tickToCallback;
+    std::vector<EventData> events;
 
     size_t currentIndex = 0;
     int32_t currentTick = 0;
+    Hash nextHash = 1;
     void* userData = nullptr;
 
 public:
@@ -26,26 +36,85 @@ public:
 
     void advance(int32_t newTick)
     {
-        while (currentIndex < tickToCallback.size() && newTick >= tickToCallback[currentIndex].first)
+        while (currentIndex < events.size() && newTick >= events[currentIndex].tick)
         {
-            tickToCallback[currentIndex].second(tickToCallback[currentIndex].first, userData);
+            events[currentIndex].callback(events[currentIndex].hash, events[currentIndex].tick, userData);
             currentIndex++;
         }
         currentTick = newTick;
     }
 
-    void addCallback(int32_t tick, Callback callback)
+    void rewind(int32_t newTick)
     {
-        if (currentIndex < tickToCallback.size() && tick <= currentTick)
+        while (currentIndex > 0 && newTick < events[currentIndex-1].tick)
         {
-            callback(tickToCallback[currentIndex].first, userData);
-            currentIndex++;
+            currentIndex--;
+            events[currentIndex].undoCallback(events[currentIndex].hash, events[currentIndex].tick, userData);
         }
+        currentTick = newTick;
+    }
 
-        auto it = std::lower_bound(tickToCallback.begin(), tickToCallback.end(), tick, [](const std::pair<int32_t, Callback>& pair, int32_t addedCallbackTick)
+    void addEventData(const EventData& eventData)
+    {
+        // if (eventData.tick <= currentTick)
+        // {
+        //     eventData.callback(eventData.hash, eventData.tick, userData);
+        //     currentIndex++;
+        // }
+
+        auto it = std::lower_bound(events.begin(), events.end(), eventData.tick, [](const EventData& eventData, int32_t addedCallbackTick)
         {
-            return pair.first < addedCallbackTick;
+            return eventData.tick < addedCallbackTick;
         });
-        tickToCallback.insert(it, std::pair<int32_t, Callback>(tick, callback));
+        events.insert(it, std::move(eventData));
+    }
+
+    Hash addCallback(int32_t tick, Callback callback, Callback undo)
+    {
+        int32_t currentHash = nextHash;
+
+        EventData eventData;
+        eventData.callback = callback;
+        eventData.tick = tick;
+        eventData.hash = currentHash;
+
+        addEventData(eventData);
+
+        // compute next hash
+        nextHash += 1;
+
+        return currentHash;
+    }
+
+    void removeCallback(std::vector<EventData>::iterator it)
+    {
+        auto next = events.erase(it);
+
+        if (size_t(next - events.begin()) <= currentIndex)
+        {
+            currentIndex = std::max(currentIndex-1, 0llu);
+        }
+    }
+
+    // can be optimized with a map?
+    void removeCallback(Hash hash)
+    {
+        removeCallback(std::find_if(events.begin(), events.end(), [hash](const EventData& elem)
+        {
+            return elem.hash == hash;
+        }));
+    }
+
+    void updateCallbackTick(Hash hash, int32_t tick)
+    {
+        auto it = std::find_if(events.begin(), events.end(), [hash](const EventData& elem)
+        {
+            return elem.hash == hash;
+        });
+
+        EventData data = *it;
+        data.tick = tick;
+        removeCallback(it);
+        addEventData(data);
     }
 };

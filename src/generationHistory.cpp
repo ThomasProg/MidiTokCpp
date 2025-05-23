@@ -92,7 +92,7 @@ void GenerationHistory::addEncodedToken(int32_t newEncodedToken)
 void GenerationHistory::addStandaloneNote(const Note& note)
 {
     notes.push_back(note);
-    int32_t decodedTokenIndex = decodedTokenIndexToEncodedTokenIndex.size();
+    int32_t decodedTokenIndex = int32_t(decodedTokenIndexToEncodedTokenIndex.size());
     noteIndexToDecodedTokenIndex.emplace_back(decodedTokenIndex, decodedTokenIndex);
 }
 void GenerationHistory::convert()
@@ -179,13 +179,10 @@ size_t GenerationHistory::tickToEncodedTokenIndex(int32_t tick) const
     return decodedTokenIndexToEncodedTokenIndex[tickToDecodedTokenIndex(tick)];
 }
 
-void GenerationHistory::removeAfterTick(int32_t tick)
+void GenerationHistory::removeTokensAfterTick(int32_t tick)
 {
-    convert();
-
     if (notes.empty())
     {
-        removeLastTimeshift();
         return;
     }
 
@@ -194,7 +191,7 @@ void GenerationHistory::removeAfterTick(int32_t tick)
     // but we consider the generation stops if there are enough tokens generated already
     auto rit = std::find_if(notes.rbegin(), notes.rend(), [tick](const Note& elem)
     {
-        return elem.tick < tick;
+        return elem.tick <= tick || elem.pitch == 70;
     });
 
     // index of the next element, excluding the one for which the predicate is true
@@ -219,6 +216,13 @@ void GenerationHistory::removeAfterTick(int32_t tick)
 
         nextTokenToProcess = std::min(nextTokenToProcess, int32_t(decodedTokensHistory.getTokensSize()));
     }
+}
+
+void GenerationHistory::rewind(int32_t tick)
+{
+    convert();
+
+    removeTokensAfterTick(tick);
 
     if (converter != nullptr)
     {
@@ -226,12 +230,13 @@ void GenerationHistory::removeAfterTick(int32_t tick)
     }
 
     removeLastTimeshift();
+    musicAdaptSequencer.rewind(tick);
 }
 
 void GenerationHistory::removeLastTimeshift()
 {
     const std::vector<int32_t>& tokens = decodedTokensHistory.getTokens();
-    int32_t i = tokens.size() - 1;
+    int32_t i = int32_t(tokens.size()) - 1;
     while (i >= 0 && tokenizer.isTimeShiftFast(tokens[i]))
     {
         i--;
@@ -279,7 +284,7 @@ TokenHistoryHandle getDecodedTokensHistory(const GenerationHistoryHandle genHist
 
 void generationHistory_removeAfterTick(const GenerationHistoryHandle genHistory, int32_t tick)
 {
-    genHistory->removeAfterTick(tick);
+    genHistory->rewind(tick);
 }
 
 void generationHistory_convert(const GenerationHistoryHandle genHistory)

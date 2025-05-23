@@ -228,3 +228,29 @@ TEST(MidiTokTests, MistralRewindKeepKVCache)
 	inf.NbTokensToGenerate = 5;
 	inf.runInference();
 }
+
+TEST(MidiTokTests, MistralRewindTest)
+{
+	getModelBuilderManager().registerModelBuilder("mistral", new Llama::LlamaBuilder());
+
+	const char* Path = WORKSPACE_PATH "Models/TSD/1.3.2";
+	Inf inf;
+	inf.NbTokensToGenerate = 100;
+	inf.load(Path, false);
+	inf.runInference();
+
+	GenerationHistory* history = inf.ARPipeline->getHistory(inf.Batch2);
+	history->convert();
+
+	long long elapsed = 0;
+
+	const std::vector<Note>& notes = history->getNotes();
+
+	int32_t lastTick = notes.back().tick;
+
+	inf.ARPipeline->batchRewind(inf.Batch2, notes.back().tick);
+
+	int32_t lastTick2 = notes.back().tick;
+
+	EXPECT_EQ(lastTick, lastTick2);
+}

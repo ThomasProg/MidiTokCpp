@@ -456,7 +456,7 @@ void LlamaPipeline::batchRewind(AutoRegressiveBatchHandle batch, int32_t tick)
     TokenHistory& encodedTokensHistory = genHistory->getEncodedTokensHistory();
     const int32_t nbEncodedTokensBefore = int32_t(encodedTokensHistory.getTokensSize());
     
-	genHistory->removeAfterTick(tick);
+	genHistory->rewind(tick);
 
     const std::vector<int32_t>& tokens = encodedTokensHistory.getTokens();
 

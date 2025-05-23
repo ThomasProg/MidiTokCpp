@@ -3,6 +3,14 @@
 #include "utilities.hpp"
 #include <onnxruntime_cxx_api.h>
 
+AOnnxModel::~AOnnxModel()
+{
+    if (session != nullptr)
+    {
+        delete session;
+    }
+}
+
 CResult AOnnxModel::loadOnnxModel(const Ort::Env& env, const char* modelPath)
 {
     // Create session options and enable optimization
@@ -13,7 +21,7 @@ CResult AOnnxModel::loadOnnxModel(const Ort::Env& env, const char* modelPath)
 
     try 
     {
-        session = MakeUnique<Ort::Session>(env, widen(modelPath).c_str(), session_options);
+        session = new Ort::Session(env, widen(modelPath).c_str(), session_options);
 
         return onPostOnnxLoad();
     }

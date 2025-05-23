@@ -117,8 +117,9 @@ public:
     size_t tickToNoteIndex(int32_t tick) const;
     size_t tickToDecodedTokenIndex(int32_t tick) const;
     size_t tickToEncodedTokenIndex(int32_t tick) const;
-    void removeAfterTick(int32_t tick);
+    void rewind(int32_t tick);
     void removeLastTimeshift();
+    void removeTokensAfterTick(int32_t tick);
 
     friend class GenerationHistoryTest;
     friend class OnAddTokensArgs;

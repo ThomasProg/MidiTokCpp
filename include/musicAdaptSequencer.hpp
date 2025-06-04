@@ -49,7 +49,11 @@ public:
         while (currentIndex > 0 && newTick < events[currentIndex-1].tick)
         {
             currentIndex--;
-            events[currentIndex].undoCallback(events[currentIndex].hash, events[currentIndex].tick, userData);
+            Callback undo = events[currentIndex].undoCallback;
+            if (undo)
+            { 
+                undo(events[currentIndex].hash, events[currentIndex].tick, userData);
+            }
         }
         currentTick = newTick;
     }
@@ -77,6 +81,7 @@ public:
         eventData.callback = callback;
         eventData.tick = tick;
         eventData.hash = currentHash;
+        eventData.undoCallback = undo;
 
         addEventData(eventData);
 

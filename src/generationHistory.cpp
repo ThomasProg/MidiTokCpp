@@ -107,7 +107,6 @@ void GenerationHistory::convert()
     {
         converter = createConverterFromTokenizer(&tokenizer);
 
-        musicAdaptSequencer.setUserData(this);
         converter->onNewTick = [](void* data, int32_t newTick)
         {
             ConvertStruct* conv = (ConvertStruct*) data;
@@ -189,13 +188,25 @@ void GenerationHistory::removeTokensAfterTick(int32_t tick)
     // consider we want to remove an element towards the end;
     // dichotomy might be faster otherwise
     // but we consider the generation stops if there are enough tokens generated already
-    auto rit = std::find_if(notes.rbegin(), notes.rend(), [tick](const Note& elem)
+    // auto rit = std::find_if(notes.rbegin(), notes.rend(), [tick](const Note& elem)
+    // {
+    //     return elem.tick <= tick || elem.pitch == 70;
+    // });
+
+    // size_t index = notes.size() - 1;
+    // while (notes[index].tick >= tick)
+    // {
+    //     index--;
+    // }
+    // index++;
+    size_t index = notes.size();
+    while (index > 0 && notes[index-1].tick >= tick)
     {
-        return elem.tick <= tick || elem.pitch == 70;
-    });
+        index--;
+    }
 
     // index of the next element, excluding the one for which the predicate is true
-    size_t index = notes.rend() - rit;
+    // size_t index = notes.rend() - rit;
     if (index >= notes.size())
     {
         removeLastTimeshift();

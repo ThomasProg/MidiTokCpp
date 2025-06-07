@@ -216,6 +216,9 @@ void TSDConverter::rewind(int32_t tick)
 
 void TSDConverter::undo()
 {
+    if (dynamicData.size() <= 1)
+        return;
+        
     dynamicData.pop_back();
 }
 

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vector>
+#include <cassert>
+#include "sequencerObserver.hpp"
 
 class Sequencer
 {
@@ -12,6 +14,7 @@ class Sequencer
         int32_t tick;
         Callback callback;
         Callback undoCallback;
+        void* userData = nullptr;
     };
 
     // sorted by tick
@@ -21,7 +24,17 @@ class Sequencer
     size_t currentIndex = 0;
     int32_t currentTick = 0;
     Hash nextHash = 1;
-    void* userData = nullptr;
+
+private:
+    static void observerCallback(int32_t hash, int32_t tick, void* userData)
+    {
+        static_cast<ISequencerObserver*>(userData)->onCallback(hash, tick);
+    }
+
+    static void observerUndoCallback(int32_t hash, int32_t tick, void* userData)
+    {
+        static_cast<ISequencerObserver*>(userData)->onCallback(hash, tick);
+    }
 
 public:
     void reset()
@@ -29,16 +42,12 @@ public:
         currentIndex = 0;
     }
 
-    void setUserData(void* inUserData)
-    {
-        userData = inUserData;
-    }
-
     void advance(int32_t newTick)
     {
         while (currentIndex < events.size() && newTick >= events[currentIndex].tick)
         {
-            events[currentIndex].callback(events[currentIndex].hash, events[currentIndex].tick, userData);
+            EventData& currentEvent = events[currentIndex]; 
+            currentEvent.callback(currentEvent.hash, currentEvent.tick, currentEvent.userData);
             currentIndex++;
         }
         currentTick = newTick;
@@ -49,10 +58,11 @@ public:
         while (currentIndex > 0 && newTick < events[currentIndex-1].tick)
         {
             currentIndex--;
-            Callback undo = events[currentIndex].undoCallback;
+            EventData& currentEvent = events[currentIndex]; 
+            Callback undo = currentEvent.undoCallback;
             if (undo)
             { 
-                undo(events[currentIndex].hash, events[currentIndex].tick, userData);
+                undo(currentEvent.hash, currentEvent.tick, currentEvent.userData);
             }
         }
         currentTick = newTick;
@@ -73,7 +83,7 @@ public:
         events.insert(it, std::move(eventData));
     }
 
-    Hash addCallback(int32_t tick, Callback callback, Callback undo)
+    Hash addCallback(int32_t tick, void* userData, Callback callback, Callback undo)
     {
         int32_t currentHash = nextHash;
 
@@ -82,6 +92,7 @@ public:
         eventData.tick = tick;
         eventData.hash = currentHash;
         eventData.undoCallback = undo;
+        eventData.userData = userData;
 
         addEventData(eventData);
 
@@ -89,6 +100,11 @@ public:
         nextHash += 1;
 
         return currentHash;
+    }
+
+    Hash addCallback(int32_t tick, ISequencerObserver* observer)
+    {
+        return addCallback(tick, observer, observerCallback, observerUndoCallback);
     }
 
     void removeCallback(std::vector<EventData>::iterator it)

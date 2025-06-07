@@ -439,7 +439,7 @@ constexpr std::array<T, N>& modArray(std::array<int, 8> arr, int32_t modValue)
     return arr;
 }
 
-namespace Scales::Ionian::CMajor
+namespace Scales::Ionian::Major
 {
 constexpr const int arr[] = {0,2,4,5,7,9,11};
 
@@ -450,5 +450,159 @@ const int32_t* get()
 int32_t size()
 {
     return 7;
+}
+}
+
+namespace Scales::Dorian::Minor
+{
+constexpr const int arr[] = {0,2,3,5,7,9,10};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 7;
+}
+}
+
+namespace Scales::Mixolydian
+{
+constexpr const int arr[] = {0,2,4,5,7,9,10};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 7;
+}
+}
+
+namespace Scales::Melodic::Minor
+{
+constexpr const int arr[] = {0,2,3,5,7,9,11};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 7;
+}
+}
+
+namespace Scales::Harmonic::Minor
+{
+constexpr const int arr[] = {0,2,3,5,7,8,11};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 7;
+}
+}
+
+namespace Scales::WholeTone
+{
+constexpr const int arr[] = {0,2,4,6,8,10};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 6;
+}
+}
+
+namespace Scales::Blues
+{
+constexpr const int arr[] = {0,3,5,6,7,10};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 6;
+}
+}
+
+namespace Scales::Pentatonic::Major
+{
+constexpr const int arr[] = {0,2,4,7,9};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 5;
+}
+}
+
+namespace Scales::Pentatonic::Minor
+{
+constexpr const int arr[] = {0,3,5,7,10};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 5;
+}
+}
+
+namespace Scales::Hungarian::Minor
+{
+constexpr const int arr[] = {0,2,3,6,7,8,11};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 7;
+}
+}
+
+namespace Scales::Byzantine
+{
+constexpr const int arr[] = {0,1,4,5,7,8,11};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 7;
+}
+}
+
+namespace Scales::Diminished
+{
+constexpr const int arr[] = {0,1,3,4,6,7,9,10};
+
+const int32_t* get()
+{
+    return &arr[0];
+}
+int32_t size()
+{
+    return 8;
 }
 }
